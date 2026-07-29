@@ -1,79 +1,99 @@
 /**
- * Plans — the revenue model.
+ * Credit packs — one-time purchases, not subscriptions.
  *
- * MRR requires recurring subscriptions, not one-off packs, so the primary
- * product is a monthly plan that REFILLS a credit balance. Credits are the
- * single currency across every module, which is what makes each new module
- * raise the value of the existing subscription instead of splitting it.
+ * A subscription asks a stranger to commit monthly, before they have any proof
+ * the tool works for their product. That is the slowest possible path to a first
+ * payment. A pack asks for one decision, once, at a price someone can approve
+ * without thinking — and the credits never expire, so there is nothing to cancel
+ * and nothing to regret.
  *
- * Price ids come from env because they differ per Stripe environment and rotate;
- * never hardcode them. A plan with no configured price id is simply not offered,
- * so a half-configured deploy hides the button rather than showing a broken one.
+ * Credits remain the single currency across every module, so a pack bought for
+ * the Ad Studio still works in whatever ships next. That is what makes each new
+ * module raise the value of a purchase already made.
+ *
+ * Price ids come from env because they differ per Stripe environment and rotate.
+ * A pack with no configured price id is not offered at all, so a half-configured
+ * deploy hides the button instead of showing a broken one.
  */
 import { cleanKey } from '@/lib/core/supabase/env'
 
-export type PlanId = 'starter' | 'studio' | 'agency'
+export type PackId = 'taster' | 'brand' | 'studio' | 'agency'
 
-export interface Plan {
-  id: PlanId
+export interface CreditPack {
+  id: PackId
   name: string
-  /** EUR per month, for display only — Stripe is the source of truth on price. */
+  /** EUR, one-time. Display only — Stripe is the source of truth. */
   priceEur: number
-  /** Credits granted on subscription and on every renewal. */
-  monthlyCredits: number
+  credits: number
   blurb: string
   features: string[]
-  /** Env var holding the Stripe price id. */
   priceEnv: string
   highlight?: boolean
 }
 
-export const PLANS: Plan[] = [
+/** 10 credits per image, so images = credits / 10. */
+export const CREDITS_PER_IMAGE = 10
+
+export const PACKS: CreditPack[] = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: 'taster',
+    name: 'Taster',
+    priceEur: 9,
+    credits: 100,
+    blurb: 'Enough to shoot one product properly.',
+    features: ['100 credits — 10 images', 'All 11 campaign categories', 'Commercial usage rights', 'Credits never expire'],
+    priceEnv: 'STRIPE_PRICE_TASTER',
+  },
+  {
+    id: 'brand',
+    name: 'Brand',
     priceEur: 29,
-    monthlyCredits: 300,
-    blurb: 'For one brand shipping regular content.',
-    features: ['300 credits monthly (~30 images)', 'All 11 campaign categories', 'All formats and scenes', 'Commercial usage rights'],
-    priceEnv: 'STRIPE_PRICE_STARTER',
+    credits: 400,
+    blurb: 'A full campaign across every format.',
+    features: ['400 credits — 40 images', 'Every scene and format', 'Virtual brand ambassadors', 'Credits never expire'],
+    priceEnv: 'STRIPE_PRICE_BRAND',
+    highlight: true,
   },
   {
     id: 'studio',
     name: 'Studio',
-    priceEur: 99,
-    monthlyCredits: 1200,
-    blurb: 'For agencies running several brands.',
-    features: ['1,200 credits monthly (~120 images)', 'Everything in Starter', 'Virtual brand ambassadors', 'Priority generation queue'],
+    priceEur: 79,
+    credits: 1200,
+    blurb: 'Several brands, or a season of content.',
+    features: ['1,200 credits — 120 images', 'Everything in Brand', 'Priority generation', 'Credits never expire'],
     priceEnv: 'STRIPE_PRICE_STUDIO',
-    highlight: true,
   },
   {
     id: 'agency',
     name: 'Agency',
-    priceEur: 299,
-    monthlyCredits: 4000,
-    blurb: 'For teams with continuous campaign output.',
-    features: ['4,000 credits monthly (~400 images)', 'Everything in Studio', 'Highest-quality engine routing', 'Priority support'],
+    priceEur: 199,
+    credits: 3500,
+    blurb: 'Client work at volume.',
+    features: ['3,500 credits — 350 images', 'Everything in Studio', 'Highest-quality engine routing', 'Credits never expire'],
     priceEnv: 'STRIPE_PRICE_AGENCY',
   },
 ]
 
-export function getPlan(id: string): Plan | undefined {
-  return PLANS.find((p) => p.id === id)
+export function getPack(id: string): CreditPack | undefined {
+  return PACKS.find((p) => p.id === id)
 }
 
-/** Stripe price id for a plan, empty when not configured in this environment. */
-export function priceIdFor(plan: Plan): string {
-  return cleanKey(process.env[plan.priceEnv])
+/** Stripe price id for a pack, empty when not configured in this environment. */
+export function priceIdFor(pack: CreditPack): string {
+  return cleanKey(process.env[pack.priceEnv])
 }
 
-/** Only plans that can actually be purchased right now. */
-export function purchasablePlans(): Plan[] {
-  return PLANS.filter((p) => priceIdFor(p).length > 0)
+/** Only packs that can actually be purchased right now. */
+export function purchasablePacks(): CreditPack[] {
+  return PACKS.filter((p) => priceIdFor(p).length > 0)
 }
 
-/** Reverse lookup used by the webhook to know how many credits a renewal grants. */
-export function planByPriceId(priceId: string): Plan | undefined {
-  return PLANS.find((p) => priceIdFor(p) === priceId)
+/** Reverse lookup used by the webhook to know how many credits a payment grants. */
+export function packByPriceId(priceId: string): CreditPack | undefined {
+  return PACKS.find((p) => priceIdFor(p) === priceId)
+}
+
+/** Effective price per image, for honest comparison on the pricing page. */
+export function perImageEur(pack: CreditPack): number {
+  return pack.priceEur / (pack.credits / CREDITS_PER_IMAGE)
 }

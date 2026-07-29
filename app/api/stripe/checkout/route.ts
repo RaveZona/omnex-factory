@@ -11,7 +11,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/core/supabase/server'
 import { createAdminClient } from '@/lib/core/supabase/admin'
 import { cleanKey } from '@/lib/core/supabase/env'
-import { getPlan, priceIdFor } from '@/lib/core/billing/plans'
+import { getPack, priceIdFor } from '@/lib/core/billing/plans'
 import { checkRateLimit } from '@/lib/core/security/ratelimit'
 
 export const dynamic = 'force-dynamic'
@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
   const key = cleanKey(process.env.STRIPE_SECRET_KEY)
   if (!key) return NextResponse.json({ error: 'Billing is not configured yet.' }, { status: 503 })
 
-  const body = await req.json().catch(() => ({})) as { plan?: string }
-  const plan = getPlan(body.plan ?? '')
-  if (!plan) return NextResponse.json({ error: 'Unknown plan.' }, { status: 400 })
+  const body = await req.json().catch(() => ({})) as { pack?: string; plan?: string }
+  const pack = getPack(body.pack ?? body.plan ?? '')
+  if (!pack) return NextResponse.json({ error: 'Unknown pack.' }, { status: 400 })
 
-  const priceId = priceIdFor(plan)
-  if (!priceId) return NextResponse.json({ error: `Plan "${plan.id}" is not available yet.` }, { status: 503 })
+  const priceId = priceIdFor(pack)
+  if (!priceId) return NextResponse.json({ error: `Pack "${pack.id}" is not available yet.` }, { status: 503 })
 
   const stripe = new Stripe(key, { maxNetworkRetries: 2 })
   const admin = createAdminClient()
@@ -53,15 +53,17 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin
   try {
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      // One-time payment, not a subscription: nothing to commit to, nothing to
+      // cancel. Credits are granted once and never expire.
+      mode: 'payment',
       customer: customerId,
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/studio?welcome=1`,
       cancel_url: `${origin}/pricing`,
       allow_promotion_codes: true,
-      subscription_data: { metadata: { user_id: user.id, plan: plan.id } },
-      metadata: { user_id: user.id, plan: plan.id },
+      payment_intent_data: { metadata: { user_id: user.id, pack: pack.id } },
+      metadata: { user_id: user.id, pack: pack.id },
     })
     if (!session.url) return NextResponse.json({ error: 'Stripe returned no checkout URL.' }, { status: 502 })
     return NextResponse.json({ url: session.url })

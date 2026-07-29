@@ -11,16 +11,16 @@
  * 2. SIGNATURE VERIFICATION on the RAW body. Parsing before verifying would let
  *    anyone mint credits by POSTing JSON.
  *
- * Credits are granted on `checkout.session.completed` (first payment) and on
- * `invoice.paid` (every renewal) — the latter is what makes this MRR rather
- * than a one-off sale.
+ * Credits are granted on `checkout.session.completed`. There is no renewal
+ * branch: packs are one-time purchases, so a single event grants a single
+ * balance and there is no recurring charge to reconcile.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/core/supabase/admin'
 import { cleanKey } from '@/lib/core/supabase/env'
 import { grantCredits } from '@/lib/core/billing/credits'
-import { planByPriceId, getPlan } from '@/lib/core/billing/plans'
+import { getPack } from '@/lib/core/billing/plans'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,15 +70,15 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const s = event.data.object as Stripe.Checkout.Session
-        const planId = (s.metadata?.plan as string | undefined) ?? ''
-        const plan = getPlan(planId)
+        const packId = (s.metadata?.pack as string | undefined) ?? (s.metadata?.plan as string | undefined) ?? ''
+        const pack = getPack(packId)
         const userId = await resolveUserId(admin, {
           clientReferenceId: s.client_reference_id,
           metadataUserId: s.metadata?.user_id ?? null,
           customerId: typeof s.customer === 'string' ? s.customer : null,
         })
-        if (userId && plan) {
-          await grantCredits(userId, plan.monthlyCredits, 'purchase', s.id)
+        if (userId && pack) {
+          await grantCredits(userId, pack.credits, 'purchase', s.id)
           if (typeof s.customer === 'string') {
             await admin.from('profiles').update({ stripe_customer_id: s.customer }).eq('id', userId)
           }
@@ -86,25 +86,6 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      case 'invoice.paid': {
-        // Every renewal refills the balance — this is the recurring half of MRR.
-        const inv = event.data.object as Stripe.Invoice
-        const line = inv.lines?.data?.[0]
-        const priceId = (line as unknown as { price?: { id?: string } } | undefined)?.price?.id ?? ''
-        const plan = planByPriceId(priceId)
-        const userId = await resolveUserId(admin, {
-          metadataUserId: (inv.metadata?.user_id as string | undefined) ?? null,
-          customerId: typeof inv.customer === 'string' ? inv.customer : null,
-        })
-        // The first invoice arrives alongside checkout.session.completed; the
-        // event-id gate makes them distinct events, so guard against granting
-        // twice by only topping up when this invoice is a renewal.
-        const isRenewal = inv.billing_reason === 'subscription_cycle'
-        if (userId && plan && isRenewal) {
-          await grantCredits(userId, plan.monthlyCredits, 'purchase', inv.id)
-        }
-        break
-      }
 
       default:
         break
