@@ -21,7 +21,7 @@
  * AI-generated disclosure (see AI_DISCLOSURE).
  */
 
-export type SchoolId = 'glamour' | 'editorial' | 'natural' | 'commercial'
+export type SchoolId = 'high_fashion' | 'glamour' | 'editorial' | 'natural' | 'commercial'
 
 export interface BeautySchool {
   id: SchoolId
@@ -35,21 +35,51 @@ export interface BeautySchool {
   suits: string[]
 }
 
+/**
+ * Skin language, tuned by measurement. The first attempt ("visible pores and
+ * natural sebum sheen, no airbrushing") over-fired: at close framing it produced
+ * freckled, rough, almost damaged-looking skin. This wording lands between
+ * plastic and grungy — flawless, but still a photograph.
+ */
+const CLEAR_SKIN =
+  'clear even luminous complexion with fine natural skin texture, subtle healthy sheen, no heavy retouching'
+
 /** Appended to every persona: what keeps the render a photograph, not an illustration. */
 const REALISM =
-  'visible skin pores and fine skin texture, subsurface scattering, natural unretouched skin, '
-  + 'catchlights in the eyes, real photograph, medium format, 85mm lens, photorealistic, high dynamic range'
+  'natural asymmetric catchlights in the eyes, real photograph, photorealistic, tack sharp eyes, high dynamic range'
 
-/** Removes the tells, including the airbrushed look glamour prompts drift into. */
+/**
+ * Removes the tells. IMPORTANT: this only reaches providers that accept a
+ * negative prompt. Pollinations does NOT — a run with these exclusions still
+ * returned freckles — so anything that MUST be excluded has to be phrased
+ * positively in the prompt itself (see CLEAR_SKIN). Treat this list as a bonus
+ * on paid providers, never as a guarantee.
+ */
 export const PERSONA_NEGATIVE =
   'airbrushed, plastic skin, waxy skin, illustration, 3d render, cgi, doll-like, uncanny, '
-  + 'extra fingers, duplicate limbs, bad anatomy, deformed eyes, crooked teeth, watermark, text, logo, '
-  + 'oversaturated, blurry'
+  + 'freckles, blemishes, acne, rough skin, scars, macro close-up, '
+  + 'extra fingers, duplicate limbs, bad anatomy, deformed eyes, glowing eyes, crooked teeth, '
+  + 'watermark, text, logo, oversaturated, blurry'
 
 /** Shown with any published persona render — a requirement, and a selling point to agencies. */
 export const AI_DISCLOSURE = 'AI-generated model. Not a real person.'
 
 export const SCHOOLS: BeautySchool[] = [
+  {
+    // The founder's reference direction: red-carpet "cool girl". Highest-rated of
+    // everything generated, and the school that finally produced convincing eyes.
+    id: 'high_fashion',
+    name: 'High Fashion',
+    blurb: 'Red-carpet cool — striking bone structure, real eyes, flawless but not plastic.',
+    look: 'pale ice-blue grey eyes with a distinct dark limbal ring and detailed fibrous iris texture, '
+      + 'natural uneven catchlights, realistic eyelids and lashes, '
+      + 'thick straight strong dark eyebrows, sharp high cheekbones, angular defined jawline, '
+      + 'wet-look slicked-back dark hair, cool composed unsmiling gaze, deep red matte lipstick, '
+      + CLEAR_SKIN,
+    light: 'direct on-camera flash like a red carpet photograph, crisp specular highlights, cool colour grade, '
+      + 'blurred dark event background',
+    suits: ['luxury', 'fashion', 'perfume', 'jewellery'],
+  },
   {
     id: 'glamour',
     name: 'Glamour',
