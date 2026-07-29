@@ -1,0 +1,58 @@
+name: CI
+
+# Runs the full check on every push: types, build, and the credit-ledger tests
+# against a REAL Postgres started in a container.
+#
+# No Testcontainers Cloud: the ubuntu-latest runner already ships with a working
+# Docker daemon, so containers here cost nothing. The Cloud product solves "my
+# laptop is too weak" and bills per worker-minute after a one-time 50-minute
+# trial — neither applies.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Types, build, database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run lib/__tests__/campaign-build.test.ts lib/__tests__/agent-memory.test.ts
+
+      - name: Confirm Docker is available
+        # The database suite skips itself when Docker is missing, which would
+        # report green while asserting nothing. Fail here instead, loudly.
+        run: docker info > /dev/null
+
+      - name: Database tests (real Postgres in a container)
+        run: npx vitest run lib/__tests__/credits.db.test.ts
+
+      - name: Production build
+        # Placeholder values: the build must not require live credentials, and if
+        # it ever does, that is a bug worth catching here rather than at deploy.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: npx next build
