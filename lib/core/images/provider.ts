@@ -21,6 +21,7 @@
  *                  actual value of Ad Studio, and only some providers support it.
  */
 import { cleanKey } from '@/lib/core/supabase/env'
+import { comfyGenerate, comfyUpload, hasComfy } from './comfy'
 
 export interface GenerateOptions {
   prompt: string
@@ -37,6 +38,12 @@ export interface GenerateOptions {
    * Only providers with real denoise control honour this (fal, replicate, local).
    */
   strength?: number
+  /**
+   * Things to exclude. Only reaches providers that accept a negative prompt —
+   * Pollinations does not, so exclusions that MUST hold have to be phrased
+   * positively in `prompt` instead.
+   */
+  negative?: string
   /** Prefer keyless/free providers — for internal sample generation, not customer work. */
   preferFree?: boolean
 }
@@ -224,35 +231,47 @@ const openai: ImageProvider = {
   },
 }
 
-// ── Local ComfyUI / A1111 — €0, unlimited, real img2img on your own GPU ────
+// ── Local ComfyUI on your own GPU — €0, unlimited, real denoise control ────
 const local: ImageProvider = {
   name: 'local',
-  model: env('LOCAL_IMAGE_MODEL') || 'sdxl',
+  model: env('COMFYUI_MODEL') || 'local-checkpoint',
   free: true,
+  // The one provider where the Fidelity control is genuinely real: ComfyUI has
+  // an actual denoise parameter and an actual negative prompt, both of which the
+  // free hosted provider silently ignores.
   honoursStrength: true,
   supports: ['textToImage', 'imageToImage'],
-  configured: () => !!env('LOCAL_IMAGE_URL'),
+  configured: () => hasComfy(),
   async run(opts) {
-    // Expects an OpenAI-images-compatible shim (A1111 `--api`, ComfyUI adapters).
-    const base = env('LOCAL_IMAGE_URL').replace(/\/$/, '')
     const { w, h } = SIZES[opts.aspect ?? '1:1']
-    const res = await fetch(`${base}/sdapi/v1/${opts.imageUrl ? 'img2img' : 'txt2img'}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+
+    // ComfyUI references an input image by filename, so a URL has to be fetched
+    // and uploaded first rather than passed through.
+    let initImage: string | undefined
+    if (opts.imageUrl) {
+      const res = await fetch(opts.imageUrl, { signal: AbortSignal.timeout(60_000) })
+      if (!res.ok) throw new Error(`local: could not fetch reference image (${res.status})`)
+      const bytes = Buffer.from(await res.arrayBuffer())
+      const name = await comfyUpload(bytes, `ref-${Date.now()}.png`)
+      if (!name) throw new Error('local: reference upload failed')
+      initImage = name
+    }
+
+    const n = Math.min(opts.count ?? 1, 4)
+    const out: GeneratedImage[] = []
+    for (let i = 0; i < n; i++) {
+      const r = await comfyGenerate({
         prompt: opts.prompt,
+        ...(opts.negative ? { negative: opts.negative } : {}),
         width: w,
         height: h,
-        steps: 25,
-        batch_size: Math.min(opts.count ?? 1, 4),
-        ...(opts.imageUrl ? { init_images: [opts.imageUrl], denoising_strength: opts.strength ?? 0.55 } : {}),
-        ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
-      }),
-      signal: AbortSignal.timeout(300_000),
-    })
-    if (!res.ok) throw new Error(`local ${res.status}`)
-    const j = await res.json() as { images?: string[] }
-    return (j.images ?? []).map((b64) => ({ url: `data:image/png;base64,${b64}`, width: w, height: h }))
+        ...(opts.seed !== undefined ? { seed: opts.seed + i } : {}),
+        ...(initImage ? { initImage, denoise: opts.strength ?? 0.55 } : {}),
+        ...(env('COMFYUI_MODEL') ? { model: env('COMFYUI_MODEL') } : {}),
+      })
+      for (const url of r.images) out.push({ url, width: w, height: h })
+    }
+    return out
   },
 }
 
