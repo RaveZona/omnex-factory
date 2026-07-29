@@ -57,6 +57,13 @@ interface ImageProvider {
   model: string
   free: boolean
   supports: Capability[]
+  /**
+   * Whether the provider actually honours `strength`. Verified, not assumed:
+   * Pollinations returns a BYTE-IDENTICAL image for strength 0.35 and 0.55, so
+   * it silently ignores the parameter. The UI must not offer a fidelity control
+   * that does nothing — surface this flag instead of shipping a fake dial.
+   */
+  honoursStrength: boolean
   configured: () => boolean
   run: (opts: GenerateOptions) => Promise<GeneratedImage[]>
 }
@@ -75,6 +82,7 @@ const pollinations: ImageProvider = {
   name: 'pollinations',
   model: 'flux',
   free: true,
+  honoursStrength: false,
   // Verified live: passing `image=` genuinely changes the output (the same URL is
   // byte-identical on repeat, so the difference is the input image, not noise) —
   // it really does image-to-image, keyless and free.
@@ -109,6 +117,7 @@ const fal: ImageProvider = {
   name: 'fal',
   model: env('FAL_MODEL') || 'fal-ai/flux/schnell',
   free: false,
+  honoursStrength: true,
   supports: ['textToImage', 'imageToImage'],
   configured: () => !!env('FAL_KEY'),
   async run(opts) {
@@ -152,6 +161,7 @@ const replicate: ImageProvider = {
   name: 'replicate',
   model: env('REPLICATE_MODEL') || 'black-forest-labs/flux-schnell',
   free: false,
+  honoursStrength: true,
   supports: ['textToImage', 'imageToImage'],
   configured: () => !!env('REPLICATE_API_TOKEN'),
   async run(opts) {
@@ -197,6 +207,7 @@ const openai: ImageProvider = {
   name: 'openai',
   model: 'dall-e-3',
   free: false,
+  honoursStrength: false,
   supports: ['textToImage'],
   configured: () => !!env('OPENAI_API_KEY'),
   async run(opts) {
@@ -218,6 +229,7 @@ const local: ImageProvider = {
   name: 'local',
   model: env('LOCAL_IMAGE_MODEL') || 'sdxl',
   free: true,
+  honoursStrength: true,
   supports: ['textToImage', 'imageToImage'],
   configured: () => !!env('LOCAL_IMAGE_URL'),
   async run(opts) {
@@ -273,6 +285,30 @@ export function hasImageProvider(imageToImage = false): boolean {
 /** Names of providers that would be tried, in order (diagnostics + UI). */
 export function imageProviderNames(opts: GenerateOptions = { prompt: '' }): string[] {
   return chain(opts).map((p) => p.name)
+}
+
+export interface ImageCapabilities {
+  /** Provider that will most likely serve the request. */
+  primary: string | null
+  free: boolean
+  imageToImage: boolean
+  /**
+   * False when the primary provider ignores `strength`. The Ad Studio must then
+   * hide its Fidelity control rather than present a dial that changes nothing —
+   * Pollinations returns identical bytes at 0.35 and 0.55.
+   */
+  fidelityControl: boolean
+}
+
+/** What the current configuration can actually do — so the UI never lies. */
+export function imageCapabilities(opts: GenerateOptions = { prompt: '' }): ImageCapabilities {
+  const primary = chain(opts)[0]
+  return {
+    primary: primary?.name ?? null,
+    free: primary?.free ?? false,
+    imageToImage: primary?.supports.includes('imageToImage') ?? false,
+    fidelityControl: primary?.honoursStrength ?? false,
+  }
 }
 
 /**
