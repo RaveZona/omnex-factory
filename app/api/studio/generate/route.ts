@@ -14,7 +14,10 @@ import { createClient } from '@/lib/core/supabase/server'
 import { createAdminClient } from '@/lib/core/supabase/admin'
 import { spendCredits, refundCredits, recordUsage, creditBalance } from '@/lib/core/billing/credits'
 import { generateImages, capabilitiesOf } from '@/lib/core/images/provider'
-import { buildPrompt, getFormat, SCENES, FORMATS, FIDELITY, type SceneId, type FormatId, type FidelityId } from '@/lib/modules/studio/presets'
+import { getFormat, FORMATS, FIDELITY, type FormatId, type FidelityId } from '@/lib/modules/studio/presets'
+import { buildCampaignPrompt } from '@/lib/modules/studio/build'
+import { getCategory, CATEGORIES, type CategoryId } from '@/lib/modules/studio/categories'
+import { SCHOOLS, type SchoolId } from '@/lib/modules/studio/personas'
 import { creditCostOf } from '@/lib/modules/registry'
 import { checkRateLimit } from '@/lib/core/security/ratelimit'
 
@@ -25,10 +28,14 @@ const MODULE_ID = 'studio'
 const MAX_IMAGES = 4
 
 interface GenerateBody {
-  product?: string
-  scene?: SceneId
+  /** What the customer described: product, look, dish, vehicle or space. */
+  subject?: string
+  category?: CategoryId
+  scene?: string
   format?: FormatId
   fidelity?: FidelityId
+  /** Beauty school — only meaningful for person-led categories. */
+  school?: SchoolId
   imageUrl?: string
   count?: number
 }
@@ -52,17 +59,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Malformed JSON body' }, { status: 400 })
   }
 
-  const product = (body.product ?? '').trim()
-  if (product.length < 3) {
-    return NextResponse.json({ error: 'Describe your product in a few words (min 3 characters).' }, { status: 400 })
+  const subject = (body.subject ?? '').trim()
+  if (subject.length < 3) {
+    return NextResponse.json({ error: 'Describe your subject in a few words (min 3 characters).' }, { status: 400 })
   }
-  if (product.length > 300) {
-    return NextResponse.json({ error: 'Product description is too long (max 300 characters).' }, { status: 400 })
+  if (subject.length > 300) {
+    return NextResponse.json({ error: 'Description is too long (max 300 characters).' }, { status: 400 })
   }
 
-  const scene = SCENES.find((s) => s.id === body.scene)?.id ?? SCENES[0]!.id
+  // Every selection is resolved against the catalogue, so an unknown id from the
+  // client can never reach the prompt — it falls back to that category's default.
+  const category = getCategory(body.category ?? 'product') ?? CATEGORIES[0]!
+  const scene = category.scenes.find((s) => s.id === body.scene)?.id ?? category.scenes[0]!.id
   const format = getFormat(body.format ?? 'portrait') ?? FORMATS[1]!
   const fidelity = FIDELITY.find((f) => f.id === body.fidelity)?.id ?? 'balanced'
+  const school = SCHOOLS.find((s) => s.id === body.school)?.id ?? SCHOOLS[0]!.id
   const count = Math.min(Math.max(Number(body.count ?? 1), 1), MAX_IMAGES)
 
   // The uploaded product photo must live in our own storage — never fetch an
@@ -76,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cost = creditCostOf(MODULE_ID) * count
-  const built = buildPrompt({ product, scene, fidelity })
+  const built = buildCampaignPrompt({ category: category.id, scene, subject, fidelity, school })
 
   // ── 3. Charge BEFORE any paid work ────────────────────────────────────────
   const charge = await spendCredits(user.id, cost, MODULE_ID)
@@ -121,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     void recordUsage({
       userId: user.id, moduleId: MODULE_ID, action: 'generate', credits: cost, ok: true,
-      meta: { scene, format: format.id, fidelity, count, provider: result.provider, elapsedMs: Date.now() - started, imageToImage: !!imageUrl },
+      meta: { category: category.id, scene, format: format.id, fidelity, count, provider: result.provider, elapsedMs: Date.now() - started, imageToImage: !!imageUrl },
     })
 
     return NextResponse.json({
@@ -133,6 +144,9 @@ export async function POST(req: NextRequest) {
       // Capabilities of the provider that ACTUALLY served this render — not the
       // one we intended to use, which may have failed over to a fallback.
       capabilities: capabilitiesOf(result.provider),
+      // Renders containing a synthetic person must carry a label wherever they
+      // are published — the UI shows this under the image.
+      ...(built.needsDisclosure ? { disclosure: built.disclosure } : {}),
     })
   } catch (e) {
     // ── 6. Refund — the customer must never pay for a failed generation ─────
@@ -140,7 +154,7 @@ export async function POST(req: NextRequest) {
     const message = e instanceof Error ? e.message : String(e)
     void recordUsage({
       userId: user.id, moduleId: MODULE_ID, action: 'generate', credits: 0, ok: false,
-      meta: { scene, format: format.id, fidelity, error: message.slice(0, 300) },
+      meta: { category: category.id, scene, format: format.id, fidelity, error: message.slice(0, 300) },
     })
     return NextResponse.json(
       { error: 'Generation failed — your credits were refunded.', detail: message.slice(0, 200) },
