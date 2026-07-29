@@ -4,7 +4,8 @@
  * Mirrors the proven `lib/core/llm/provider.ts` pattern: try providers in order,
  * fall through on failure, never hard-fail while any provider is reachable.
  *
- *   Pollinations  — keyless, free, FLUX. No image input (text-to-image only).
+ *   Pollinations  — keyless, free, FLUX. Does text-to-image AND image-to-image
+ *                   (verified live), which makes €0 operation genuinely viable.
  *   Fal.ai        — FLUX schnell/dev, fastest paid path, supports image input.
  *   Replicate     — any model; used for product-placement / inpainting models.
  *   OpenAI        — DALL-E 3, text-to-image only.
@@ -28,6 +29,14 @@ export interface GenerateOptions {
   aspect?: '1:1' | '4:5' | '16:9' | '9:16'
   count?: number
   seed?: number
+  /**
+   * How far the render may travel from the customer's product photo, 0–1.
+   * Measured behaviour: at high strength the scene is gorgeous but details drift
+   * (a live test turned yellow laces white). Keep it low when brand fidelity
+   * matters — exact colour, logo, or trim — and higher for looser mood shots.
+   * Only providers with real denoise control honour this (fal, replicate, local).
+   */
+  strength?: number
   /** Prefer keyless/free providers — for internal sample generation, not customer work. */
   preferFree?: boolean
 }
@@ -66,7 +75,10 @@ const pollinations: ImageProvider = {
   name: 'pollinations',
   model: 'flux',
   free: true,
-  supports: ['textToImage'],
+  // Verified live: passing `image=` genuinely changes the output (the same URL is
+  // byte-identical on repeat, so the difference is the input image, not noise) —
+  // it really does image-to-image, keyless and free.
+  supports: ['textToImage', 'imageToImage'],
   configured: () => true, // needs no key — always available as the safety net
   async run(opts) {
     const { w, h } = SIZES[opts.aspect ?? '1:1']
@@ -75,6 +87,9 @@ const pollinations: ImageProvider = {
     const urls = Array.from({ length: n }, (_, i) => {
       const seed = (opts.seed ?? Math.floor(Math.random() * 1e6)) + i
       const q = new URLSearchParams({ width: String(w), height: String(h), nologo: 'true', model: 'flux', seed: String(seed) })
+      // The customer's product photo must be a PUBLIC url (Supabase Storage
+      // public bucket) — the service fetches it server-side.
+      if (opts.imageUrl) q.set('image', opts.imageUrl)
       return `https://image.pollinations.ai/prompt/${encodeURIComponent(opts.prompt)}?${q}`
     })
     // Verify each URL actually returns an image before handing it to a customer.
@@ -105,7 +120,7 @@ const fal: ImageProvider = {
       image_size: { width: w, height: h },
       num_images: Math.min(opts.count ?? 1, 4),
     }
-    if (opts.imageUrl) body.image_url = opts.imageUrl
+    if (opts.imageUrl) { body.image_url = opts.imageUrl; body.strength = opts.strength ?? 0.55 }
     if (opts.seed !== undefined) body.seed = opts.seed
 
     const submit = await fetch(`https://queue.fal.run/${model}`, {
@@ -147,7 +162,7 @@ const replicate: ImageProvider = {
       num_outputs: Math.min(opts.count ?? 1, 4),
       aspect_ratio: opts.aspect ?? '1:1',
     }
-    if (opts.imageUrl) input.image = opts.imageUrl
+    if (opts.imageUrl) { input.image = opts.imageUrl; input.prompt_strength = opts.strength ?? 0.55 }
     if (opts.seed !== undefined) input.seed = opts.seed
 
     const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
@@ -218,7 +233,7 @@ const local: ImageProvider = {
         height: h,
         steps: 25,
         batch_size: Math.min(opts.count ?? 1, 4),
-        ...(opts.imageUrl ? { init_images: [opts.imageUrl], denoising_strength: 0.6 } : {}),
+        ...(opts.imageUrl ? { init_images: [opts.imageUrl], denoising_strength: opts.strength ?? 0.55 } : {}),
         ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
       }),
       signal: AbortSignal.timeout(300_000),
