@@ -15,16 +15,19 @@ export interface RateLimitConfig {
   keyPrefix: string  // e.g. 'run', 'linkedin', 'email'
 }
 
-// Per-route configurations
+/**
+ * Factory routes (the inherited list named routes that do not exist here).
+ *
+ * Generation is deliberately the tightest: credits meter the customer's
+ * *balance*, this meters our *infrastructure* — a user with a big balance can
+ * still not hammer the provider.
+ */
 export const RATE_LIMITS = {
-  'omnex_run':       { windowMs: 60_000,   maxReqs: 10,  keyPrefix: 'run' },
-  'linkedin_publish':{ windowMs: 3_600_000,maxReqs: 5,   keyPrefix: 'li'  },
-  'email_send':      { windowMs: 60_000,   maxReqs: 20,  keyPrefix: 'em'  },
-  'api_keys':        { windowMs: 60_000,   maxReqs: 30,  keyPrefix: 'ak'  },
-  'stripe_checkout': { windowMs: 60_000,   maxReqs: 10,  keyPrefix: 'st'  },
-  'autonomous':      { windowMs: 300_000,  maxReqs: 3,   keyPrefix: 'au'  },
-  'try_demo':        { windowMs: 60_000,   maxReqs: 5,   keyPrefix: 'td'  },
-  'lead_capture':    { windowMs: 60_000,   maxReqs: 5,   keyPrefix: 'lc'  },
+  'studio_generate': { windowMs: 60_000, maxReqs: 8,  keyPrefix: 'gen' },
+  'studio_upload':   { windowMs: 60_000, maxReqs: 20, keyPrefix: 'up'  },
+  'stripe_checkout': { windowMs: 60_000, maxReqs: 10, keyPrefix: 'st'  },
+  'email_send':      { windowMs: 60_000, maxReqs: 20, keyPrefix: 'em'  },
+  'auth':            { windowMs: 60_000, maxReqs: 15, keyPrefix: 'au'  },
 } satisfies Record<string, RateLimitConfig>
 
 export type RateLimitRoute = keyof typeof RATE_LIMITS

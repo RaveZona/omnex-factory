@@ -300,14 +300,34 @@ export interface ImageCapabilities {
   fidelityControl: boolean
 }
 
-/** What the current configuration can actually do — so the UI never lies. */
+/**
+ * What the configuration is EXPECTED to do. Use this before a request (e.g. to
+ * render the form). After a request, prefer `capabilitiesOf(result.provider)` —
+ * the intended primary may have failed and a fallback may have served it.
+ */
 export function imageCapabilities(opts: GenerateOptions = { prompt: '' }): ImageCapabilities {
-  const primary = chain(opts)[0]
+  return describe(chain(opts)[0])
+}
+
+/**
+ * Capabilities of the provider that ACTUALLY served a request.
+ *
+ * This exists because of a bug the end-to-end test caught: the response reported
+ * `fidelityControl: true` (from the intended primary, fal) while the image was
+ * really produced by pollinations, which ignores strength. The UI would then have
+ * shown a fidelity control that changed nothing — exactly the lie this flag was
+ * introduced to prevent. Always report on what served, never on what was planned.
+ */
+export function capabilitiesOf(providerName: string): ImageCapabilities {
+  return describe(ALL.find((p) => p.name === providerName))
+}
+
+function describe(p: ImageProvider | undefined): ImageCapabilities {
   return {
-    primary: primary?.name ?? null,
-    free: primary?.free ?? false,
-    imageToImage: primary?.supports.includes('imageToImage') ?? false,
-    fidelityControl: primary?.honoursStrength ?? false,
+    primary: p?.name ?? null,
+    free: p?.free ?? false,
+    imageToImage: p?.supports.includes('imageToImage') ?? false,
+    fidelityControl: p?.honoursStrength ?? false,
   }
 }
 
