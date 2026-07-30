@@ -6,3 +6,9 @@ out/
 *.tsbuildinfo
 .vercel
 .DS_Store
+
+# Generated pack assets (large binaries — not source)
+packs/*/images/
+packs/*/preview-grid.png
+packs/*/_grid.html
+packs/*.zip

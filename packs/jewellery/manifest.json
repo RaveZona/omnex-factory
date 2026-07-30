@@ -1,0 +1,87 @@
+{
+  "pack": "jewellery",
+  "name": "Jewellery Macro Backgrounds",
+  "count": 20,
+  "images": [
+    {
+      "file": "scene-001.png",
+      "kb": 24
+    },
+    {
+      "file": "scene-002.png",
+      "kb": 37
+    },
+    {
+      "file": "scene-003.png",
+      "kb": 79
+    },
+    {
+      "file": "scene-004.png",
+      "kb": 38
+    },
+    {
+      "file": "scene-005.png",
+      "kb": 37
+    },
+    {
+      "file": "scene-006.png",
+      "kb": 47
+    },
+    {
+      "file": "scene-007.png",
+      "kb": 32
+    },
+    {
+      "file": "scene-008.png",
+      "kb": 47
+    },
+    {
+      "file": "scene-009.png",
+      "kb": 30
+    },
+    {
+      "file": "scene-010.png",
+      "kb": 27
+    },
+    {
+      "file": "scene-011.png",
+      "kb": 27
+    },
+    {
+      "file": "scene-012.png",
+      "kb": 34
+    },
+    {
+      "file": "scene-013.png",
+      "kb": 69
+    },
+    {
+      "file": "scene-014.png",
+      "kb": 39
+    },
+    {
+      "file": "scene-015.png",
+      "kb": 38
+    },
+    {
+      "file": "scene-016.png",
+      "kb": 41
+    },
+    {
+      "file": "scene-017.png",
+      "kb": 29
+    },
+    {
+      "file": "scene-018.png",
+      "kb": 25
+    },
+    {
+      "file": "scene-019.png",
+      "kb": 29
+    },
+    {
+      "file": "scene-020.png",
+      "kb": 30
+    }
+  ]
+}
