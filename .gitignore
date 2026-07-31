@@ -12,3 +12,12 @@ packs/*/images/
 packs/*/preview-grid.png
 packs/*/_grid.html
 packs/*.zip
+
+# Product recipe and go-to-market — kept local, not published.
+packs/gen.mjs
+packs/gridall.mjs
+packs/DISTRIBUTION.md
+packs/UPLOAD.md
+packs/*.png
+packs/*/
+!packs/*/manifest.json
