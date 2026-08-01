@@ -261,6 +261,83 @@ def sheet(ref: Path, school: str, out: Path, ip_scale: float, seed: int, model: 
     return 0
 
 
+def pack(ref: Path, school: str, out: Path, ip_scale: float, seed: int, model: str, adapter: str) -> int:
+    """A sellable set: one identity across the scenes a brand actually publishes.
+
+    This is the passive product. The Fiverr service needs the founder present for
+    every order; a downloadable pack does not — same pipeline, no per-order work,
+    and it sells on the rail Payhip already proved.
+    """
+    import json
+    import torch
+    from PIL import Image
+
+    pipe = _pipe(ip_scale, model)
+    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name=adapter)
+    pipe.set_ip_adapter_scale(ip_scale)
+    print(f"adapter: {adapter}  ip_adapter_scale: {ip_scale}  school: {school}")
+
+    face = Image.open(ref).convert("RGB")
+    images = out / "images"
+    images.mkdir(parents=True, exist_ok=True)
+
+    CROP_NEG = ", close-up, headshot, cropped at the chest, face fills the frame"
+    # Chosen for what a small brand posts, not for what looks impressive in a demo:
+    # storefront, café, office, outdoors, studio. Formats follow the shot — square
+    # for feed, tall for Stories and full-length.
+    setups = [
+        ("studio-black",  "beauty",   "wearing a simple black top, clean seamless studio background", 512, 512, ""),
+        ("studio-knit",   "portrait", "wearing a cream knit sweater, soft window light interior", 512, 512, ""),
+        # Shot type is chosen by what must be VISIBLE, not by taste. SHOTS['portrait']
+        # begins "close-up editorial portrait", so assigning it to a scene setup
+        # forces a headshot and the scene never appears — a pack of 30 "scenes"
+        # came back as 30 near-identical crops because of exactly this. Lowering
+        # ip_scale did not help (0.70 -> 0.45 kept the crop and cost identity:
+        # worst 0.571 -> 0.414). Any setup whose value is the SCENE gets half or full.
+        ("cafe",          "half",     "sitting in a bright modern cafe, warm morning light, cafe interior visible behind", 512, 704, CROP_NEG),
+        ("office",        "half",     "wearing a tailored beige blazer, minimal bright office", 512, 704, CROP_NEG),
+        ("boutique",      "half",     "wearing a soft camel coat, inside a minimal boutique, warm spotlights", 512, 704, CROP_NEG),
+        ("city",          "full",     "wearing a long trench coat, quiet european city street, overcast daylight, standing, full figure from head to feet", 512, 768, CROP_NEG),
+        ("loft",          "full",     "wearing an elegant slip dress, warm sunlit loft, standing, full figure from head to feet", 512, 768, CROP_NEG),
+        ("resort",        "full",     "wearing a light linen summer dress, sunlit terrace with plants, standing, full figure from head to feet", 512, 768, CROP_NEG),
+        ("skincare",      "beauty",   "clean fresh skin, minimal makeup, soft pastel background, skincare campaign", 512, 512, ""),
+        ("evening",       "half",     "wearing a black evening dress, dark moody background, single soft key light", 512, 704, CROP_NEG),
+    ]
+
+    manifest = {
+        "pack": "ambassador",
+        "name": f"Virtual Brand Ambassador — {school.replace('_', ' ').title()}",
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "disclosure": AI_DISCLOSURE,
+        "model": model, "adapter": adapter, "ip_adapter_scale": ip_scale,
+        "images": [],
+    }
+
+    n = 0
+    for name, shot, wardrobe, w, h, neg_extra in setups:
+        for variant in range(3):
+            prompt = f"{SHOTS[shot]} {SCHOOLS[school]}, {wardrobe}, {CRAFT}"
+            s = seed + n
+            g = torch.Generator("cuda").manual_seed(s)
+            t0 = time.time()
+            img = pipe(prompt, negative_prompt=PERSONA_NEGATIVE + neg_extra,
+                       ip_adapter_image=face, width=w, height=h,
+                       num_inference_steps=28, guidance_scale=6.5, generator=g).images[0]
+            fname = f"{name}-{variant + 1}.png"
+            img.save(images / fname)
+            manifest["images"].append(
+                {"file": fname, "scene": name, "shot": shot, "w": w, "h": h, "seed": s})
+            n += 1
+            print(f"{fname:<20} {w}x{h}  {time.time() - t0:.0f}s")
+
+    manifest["count"] = n
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    print(f"\n{n} images in {images}")
+    print(f"Now measure: python ambassador.py --measure --ref {ref} --dir {images}")
+    print(AI_DISCLOSURE)
+    return 0
+
+
 def measure(ref: Path, folder: Path) -> int:
     """Report identity similarity as a number. 'Looks similar' is not evidence."""
     import numpy as np
@@ -342,6 +419,7 @@ def main() -> int:
     p.add_argument("--check", action="store_true", help="verify GPU and libraries, generate nothing")
     p.add_argument("--faces", type=int, metavar="N", help="generate N candidate faces to choose from")
     p.add_argument("--sheet", action="store_true", help="generate the character sheet from --ref")
+    p.add_argument("--pack", action="store_true", help="generate a sellable 30-image pack from --ref")
     p.add_argument("--measure", action="store_true", help="report identity similarity")
     p.add_argument("--ref", type=Path, help="reference face image")
     p.add_argument("--dir", type=Path, help="folder to measure")
@@ -372,6 +450,11 @@ def main() -> int:
             print("--sheet needs --ref <face image>")
             return 1
         return sheet(a.ref, a.school, a.out, a.ip_scale, a.seed, a.model, a.adapter)
+    if a.pack:
+        if not a.ref:
+            print("--pack needs --ref <face image>")
+            return 1
+        return pack(a.ref, a.school, a.out, a.ip_scale, a.seed, a.model, a.adapter)
     if a.measure:
         if not (a.ref and a.dir):
             print("--measure needs --ref and --dir")
