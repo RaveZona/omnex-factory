@@ -21,3 +21,8 @@ packs/UPLOAD.md
 packs/*.png
 packs/*/
 !packs/*/manifest.json
+
+# Generated ambassador output and model caches — local only.
+packs/ambassador-out/
+.hfcache/
+.insightface/
