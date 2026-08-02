@@ -26,3 +26,13 @@ packs/*/
 packs/ambassador-out/
 .hfcache/
 .insightface/
+
+# Identity Kit images are generated output, not source.
+packs/characters/*/accepted/
+packs/characters/*/rejected/
+packs/flux-out/
+packs/flux-v2/
+packs/flux-faces/
+packs/seraphinne-v1/
+packs/seraphinne/
+packs/*.log
