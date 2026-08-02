@@ -1,0 +1,12 @@
+# Generation workspace — gigabytes of PNGs, model caches and LoRA weights that the
+# web app never reads. Without this the CLI tries to upload all of it and the
+# upload aborts.
+packs/
+.hfcache/
+.insightface/
+*.log
+
+# Local-only
+.env.local
+node_modules/
+.next/
