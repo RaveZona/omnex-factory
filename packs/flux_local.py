@@ -86,6 +86,26 @@ def _pipe():
     transformer = FluxTransformer2DModel.from_pretrained(
         REPO, subfolder="transformer", quantization_config=dq, torch_dtype=torch.bfloat16, token=token)
 
+    lora = os.environ.get("FLUX_LORA")
+    if lora:
+        # pipe.load_lora_weights() cannot read this adapter: peft saves keys as
+        # base_model.model.<module>, while the diffusers Flux loader expects the
+        # original BFL naming (double_blocks.0.img_mod.lin...) and raises KeyError.
+        # inject_adapter_in_model applies the adapter in place, so the object stays
+        # a FluxTransformer2DModel and the pipeline still finds .config.
+        import json as _json
+        from peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
+        from safetensors.torch import load_file
+        cfg_raw = _json.loads((Path(lora) / "adapter_config.json").read_text(encoding="utf-8"))
+        lcfg = LoraConfig(r=cfg_raw["r"], lora_alpha=cfg_raw["lora_alpha"], lora_dropout=0.0,
+                          bias="none", target_modules=cfg_raw["target_modules"])
+        transformer = inject_adapter_in_model(lcfg, transformer)
+        sd = load_file(str(Path(lora) / "adapter_model.safetensors"))
+        sd = {k.replace("base_model.model.", ""): v for k, v in sd.items()}
+        res = set_peft_model_state_dict(transformer, sd)
+        missing = len(getattr(res, "unexpected_keys", []) or [])
+        print(f"LoRA injected from {lora}  rank={cfg_raw['r']}  unexpected_keys={missing}")
+
     tq = TBnb(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16)
     text_encoder_2 = T5EncoderModel.from_pretrained(
         REPO, subfolder="text_encoder_2", quantization_config=tq, torch_dtype=torch.bfloat16, token=token)
@@ -98,19 +118,47 @@ def _pipe():
     return pipe
 
 
-def generate(prompt: str, out: Path, w: int, h: int, steps: int, seed: int, count: int, guidance: float) -> int:
+def generate(prompt: str, out: Path, w: int, h: int, steps: int, seed: int, count: int,
+             guidance: float, jobs_file: Path | None = None) -> int:
+    """One pipeline load, many prompts.
+
+    Loading the quantized pipeline costs ~2 minutes; generating costs ~55s. Running
+    a second batch as a second process paid that load again for nothing, so a jobs
+    file lets one load serve every prompt in a session.
+
+    Jobs file format, one job per line:  name | WxH | count | prompt
+    """
     import torch
     pipe = _pipe()
     out.mkdir(parents=True, exist_ok=True)
-    for i in range(count):
-        s = seed + i
-        t0 = time.time()
-        img = pipe(prompt, width=w, height=h, num_inference_steps=steps,
-                   guidance_scale=guidance,
-                   generator=torch.Generator("cpu").manual_seed(s)).images[0]
-        f = out / f"flux-{s}.png"
-        img.save(f)
-        print(f"{f.name}  {w}x{h}  {time.time()-t0:.0f}s")
+
+    jobs = []
+    if jobs_file:
+        for line in jobs_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = [p.strip() for p in line.split("|", 3)]
+            if len(parts) != 4:
+                print(f"skipping malformed job: {line[:60]}"); continue
+            name, size, cnt, ptext = parts
+            jw, jh = (int(v) for v in size.lower().split("x"))
+            jobs.append((name, jw, jh, int(cnt), ptext))
+    else:
+        jobs.append(("flux", w, h, count, prompt))
+
+    n = 0
+    for name, jw, jh, cnt, ptext in jobs:
+        for i in range(cnt):
+            sd = seed + n
+            t0 = time.time()
+            img = pipe(ptext, width=jw, height=jh, num_inference_steps=steps,
+                       guidance_scale=guidance,
+                       generator=torch.Generator("cpu").manual_seed(sd)).images[0]
+            f = out / f"{name}-{sd}.png"
+            img.save(f)
+            n += 1
+            print(f"{f.name}  {jw}x{jh}  {time.time()-t0:.0f}s")
     print(AI_DISCLOSURE)
     return 0
 
@@ -134,10 +182,11 @@ def main() -> int:
     p.add_argument("--guidance", type=float, default=3.5)
     p.add_argument("--seed", type=int, default=101)
     p.add_argument("--count", type=int, default=1)
+    p.add_argument("--jobs", type=Path, help="file of 'name | WxH | count | prompt' lines")
     a = p.parse_args()
     if a.check:
         return check()
-    return generate(a.prompt, a.out, a.w, a.h, a.steps, a.seed, a.count, a.guidance)
+    return generate(a.prompt, a.out, a.w, a.h, a.steps, a.seed, a.count, a.guidance, a.jobs)
 
 
 if __name__ == "__main__":
