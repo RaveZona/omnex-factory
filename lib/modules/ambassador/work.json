@@ -1,0 +1,22 @@
+{
+  "disclosure": "AI-generated model. Not a real person.",
+  "gate": 0.75,
+  "identity_average": 0.721,
+  "works": [
+    {
+      "file": "beauty-700.png",
+      "score": 0.753,
+      "res": "768x1024"
+    },
+    {
+      "file": "cafe-704.png",
+      "score": 0.817,
+      "res": "768x1024"
+    },
+    {
+      "file": "evening-705.png",
+      "score": 0.765,
+      "res": "768x1152"
+    }
+  ]
+}
