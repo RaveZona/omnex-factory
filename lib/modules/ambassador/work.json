@@ -1,22 +1,22 @@
 {
   "disclosure": "AI-generated model. Not a real person.",
   "gate": 0.75,
-  "identity_average": 0.721,
+  "identity_average": 0.706,
   "works": [
     {
-      "file": "beauty-700.png",
-      "score": 0.753,
-      "res": "768x1024"
+      "file": "beauty-95000.png",
+      "score": 0.759,
+      "res": "896x1152"
     },
     {
-      "file": "cafe-704.png",
-      "score": 0.817,
-      "res": "768x1024"
+      "file": "beauty-95001.png",
+      "score": 0.758,
+      "res": "896x1152"
     },
     {
-      "file": "evening-705.png",
-      "score": 0.765,
-      "res": "768x1152"
+      "file": "half-95003.png",
+      "score": 0.774,
+      "res": "896x1152"
     }
   ]
 }
