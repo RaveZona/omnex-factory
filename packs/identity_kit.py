@@ -94,7 +94,7 @@ def _embed(path_or_img, apps):
     return None, 0.0
 
 
-def build(master: Path, n: int, out: Path, gate: float, seed: int) -> int:
+def build(master: Path, n: int, out: Path, gate: float, seed: int, sscale: float = 1.0) -> int:
     import numpy as np
     import torch
     from PIL import Image
@@ -127,6 +127,11 @@ def build(master: Path, n: int, out: Path, gate: float, seed: int) -> int:
 
     for i in range(n):
         name, strength, look = VARIATIONS[i % len(VARIATIONS)]
+        # Some master faces survive re-noising better than others. Seraphinne's kit
+        # accepted 19/20 at these strengths; a glossier, more specific face accepted
+        # only 9/20 because img2img drifts away from heavy makeup faster. Scaling the
+        # strength down keeps the face rather than lowering the gate to admit drift.
+        strength = round(strength * sscale, 3)
         s = seed + i
         prompt = (f"beauty portrait photograph of one woman, {look}, {face_lock}, "
                   "sharp focus on the eyes, natural skin texture with visible pores, "
@@ -173,8 +178,10 @@ def main() -> int:
     p.add_argument("--out", type=Path, default=Path("characters/seraphinne"))
     p.add_argument("--gate", type=float, default=0.75)
     p.add_argument("--seed", type=int, default=9000)
+    p.add_argument("--strength-scale", type=float, default=1.0,
+                   help="multiplier on every variation strength; below 1 keeps the face closer")
     a = p.parse_args()
-    return build(a.master, a.n, a.out, a.gate, a.seed)
+    return build(a.master, a.n, a.out, a.gate, a.seed, a.strength_scale)
 
 
 if __name__ == "__main__":
