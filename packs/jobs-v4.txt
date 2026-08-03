@@ -1,0 +1,18 @@
+# Direction v4 — face rewritten from the founder's own AI references.
+#
+# He said body is "almost yes" and face is still wrong, so the physique language is
+# kept and the face is replaced. Differences read directly off his reference images
+# against my output:
+#   hair       dark chestnut/auburn, sleek and glossy   (mine: honey blonde, wavy)
+#   skin       heavy "glass skin" gloss, strong highlight on cheekbones, nose bridge,
+#              collarbone                                (mine: matte, natural)
+#   lips       very full, wet nude-pink gloss            (mine: moderate)
+#   face       fuller, soft jaw, rounded cheek           (mine: narrow, angular)
+#   light      ONE hard source with a visible cast shadow on a plain wall — that hard
+#              shadow is the signature of every reference he sent
+#   backdrop   plain cream/beige wall, nothing else
+#
+# Subject remains a clearly adult woman, mid-twenties.
+face-a | 896x1152 | 2 | Editorial beauty photograph of a strikingly beautiful 25-year-old woman, soft oval face with full rounded cheeks and a soft feminine jawline, very full glossy nude-pink lips, large light green-grey eyes with long dark lashes and defined straight brows, flawless glass-skin finish with intense dewy highlight on the cheekbones and nose bridge and collarbones, sun-kissed golden tan, long sleek glossy dark chestnut auburn hair falling straight past the shoulders, wearing a simple navy halter top, calm confident direct gaze into the lens, ONE hard directional light source casting a crisp dark shadow of her onto a plain cream wall behind, plain beige studio backdrop, shot on Canon EOS R5 85mm f2, ultra realistic, 8k, photorealistic, high fashion beauty campaign
+face-b | 896x1152 | 2 | Editorial beauty photograph of a strikingly beautiful 25-year-old woman running one hand back through her hair, soft oval face with full cheeks and soft jawline, very full glossy lips slightly parted, large light green eyes, glass-skin with wet dewy sheen and strong highlight on the high points of the face, golden tan, long sleek glossy dark chestnut hair swept to one side, wearing a simple black halter top, confident knowing expression, ONE hard light source with a crisp cast shadow on a plain cream wall, shot on Canon EOS R5 85mm f2, ultra realistic, 8k, photorealistic, high fashion beauty campaign
+body | 896x1344 | 2 | Full-length editorial photograph of a strikingly beautiful 25-year-old fashion model standing against a plain sunlit cream wall, athletic slim toned figure with a long torso, softly defined abdominal line, narrow hips, long straight legs with correct natural anatomy and defined calves, glass-skin golden tan with a dewy sheen, long sleek glossy dark chestnut hair, very full glossy lips, large light green eyes, wearing an elegant deep red one-piece swimsuit, weight on one hip, confident direct gaze, ONE hard sun source casting a crisp shadow onto the wall behind her, entire body from head to feet in frame, shot on Hasselblad X2D 90mm f2.8, ultra realistic, 8k, photorealistic, editorial swimwear campaign

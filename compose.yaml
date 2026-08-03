@@ -1,0 +1,100 @@
+# OMNEX Factory — one file instead of remembered `docker run` lines.
+#
+# Every setting here exists because getting it wrong cost real hours on this
+# machine. The comments say which failure each one prevents.
+#
+#   docker compose --profile gen run --rm gen --jobs jobs-v5.txt --out v5
+#   docker compose --profile qc  run --rm qc  --dir v5 --ref flux-v2/face-301.png
+#   docker compose --profile svc up -d          # n8n + searxng, no GPU
+#   docker compose --profile svc down
+
+name: omnex
+
+# Bind mounts, not named volumes: the model cache is 66 GB and must sit on D:.
+# A named volume would put it inside the Docker VHDX on whichever disk Docker
+# lives on, and that VHDX does not shrink when you delete things — reclaiming it
+# needs an offline `diskpart compact vdisk`. Bind mounts stay visible and
+# deletable from the host.
+x-gpu: &gpu
+  image: omnex/flux:1
+  working_dir: /work
+  volumes:
+    - ./packs:/work
+    - ./.hfcache:/root/.cache/huggingface
+    - ./.insightface:/root/.insightface
+  environment:
+    # Gated repos need the token passed explicitly; from_pretrained does not read
+    # it from the environment for a gated repo even though model_info does.
+    HF_TOKEN: ${HF_TOKEN:?set HF_TOKEN in .env}
+    # HF's Xet transfer aborted a 24 GB download with a CAS client error. The
+    # plain HTTP path is slower but finishes.
+    HF_HUB_DISABLE_XET: "1"
+    HF_HUB_DISABLE_TELEMETRY: "1"
+    # Fragmentation on an 8 GB card turns a fitting model into an OOM.
+    PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+
+services:
+  # ---- GPU work. Run ONE at a time. ----
+  # Two GPU containers at once is what OOM'd the 12B model: 8 GB does not hold
+  # two pipelines, and the second one fails at load with the first one's memory
+  # still resident.
+  gen:
+    <<: *gpu
+    profiles: [gen]
+    entrypoint: ["python", "flux_local.py"]
+
+  kit:
+    <<: *gpu
+    profiles: [kit]
+    entrypoint: ["python", "identity_kit.py"]
+
+  train:
+    <<: *gpu
+    profiles: [train]
+    entrypoint: ["python", "train_lora.py"]
+
+  refine:
+    <<: *gpu
+    profiles: [refine]
+    entrypoint: ["python", "refine_face.py"]
+
+  # QC needs insightface and no GPU, so it can run beside a generation job.
+  qc:
+    image: omnex/flux:1
+    profiles: [qc]
+    working_dir: /work
+    volumes:
+      - ./packs:/work
+      - ./.insightface:/root/.insightface
+    entrypoint: ["python", "qc.py"]
+
+  # ---- Long-running services. No GPU, safe to leave up. ----
+  n8n:
+    image: n8nio/n8n:latest
+    profiles: [svc]
+    restart: unless-stopped
+    ports: ["5678:5678"]
+    volumes:
+      - ./.n8n:/home/node/.n8n
+    environment:
+      N8N_SECURE_COOKIE: "false"
+      GENERIC_TIMEZONE: Europe/Zagreb
+    # Without a cap, n8n plus a GPU job plus Ollama exhausted 32 GB of RAM and
+    # took the whole session down.
+    mem_limit: 2g
+
+  searxng:
+    image: searxng/searxng:latest
+    profiles: [svc]
+    restart: unless-stopped
+    ports: ["8080:8080"]
+    volumes:
+      - ./.searxng:/etc/searxng
+    mem_limit: 1g

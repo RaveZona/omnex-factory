@@ -41,3 +41,10 @@ packs/seraphinne-lora/
 packs/seraphinne-final/
 packs/seraphinne-v2/
 packs/qc/
+
+.vercel
+
+# Compose env — holds HF_TOKEN.
+.env
+.n8n/
+.searxng/

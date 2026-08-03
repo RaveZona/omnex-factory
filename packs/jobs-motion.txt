@@ -1,0 +1,18 @@
+# Direction v3 — caught, not posed.
+#
+# The founder's sharpest note so far: "energija joj je fake". He is right, and the
+# cause is in the prompts. I was describing POSES ("standing, chin lifted, confident
+# expression") and a described pose reads as a held pose. His references are all
+# mid-action: hair caught in a flick, a stride between steps, a laugh forming.
+#
+# So every line below names an ACTION with motion blur cues in the hair and fabric,
+# a candid reportage framing, and a lens/shutter that implies the photographer was
+# keeping up rather than directing. Beauty here comes from presence and light, not
+# from more skin — the Guess reference he sent shows less skin than our last render
+# and reads stronger.
+#
+# Subject stays a clearly adult woman in her mid-twenties. That is fixed.
+laugh | 896x1152 | 1 | Candid editorial photograph, a beautiful 25-year-old fashion model caught mid-laugh, head tipped slightly back, eyes crinkling, long honey-blonde balayage hair swinging across her face with visible motion, one hand half-raised toward her hair, sun-kissed golden skin with real texture and fine pores and a natural sheen, hard afternoon sunlight from the side with sharp shadows, warm rim light on the hair, shot on Canon EOS R5 85mm f1.4 at 1/1000, reportage fashion, unposed, alive, ultra realistic, 8k, photorealistic, Vogue campaign
+stride | 896x1344 | 1 | Candid full-length editorial photograph, a beautiful 25-year-old fashion model caught mid-stride walking toward the lens, weight shifting between steps, entire body head to feet in frame, long toned legs with correct natural anatomy and defined calves, flowing watercolour print slit skirt and halter top lifting with the movement, hair blown back, direct confident gaze into the lens, hard golden hour sun with strong backlit rim on hair and fabric, sunlit mediterranean street, shot on Canon EOS R5 85mm f1.8 at 1/1250, paparazzi street candid, motion, ultra realistic, 8k, photorealistic
+turn | 896x1152 | 1 | Candid editorial photograph, a beautiful 25-year-old fashion model turning her head sharply toward the camera, hair whipping across the frame with motion, lips parted mid-breath, hand still on the whitewashed wall behind her, sun-kissed golden skin with natural sheen and visible pores, wearing an elegant deep red one-piece swimsuit, hard Mediterranean noon sun bounced off the white wall, Aegean sea blurred behind, shot on Hasselblad X2D 90mm f2.8 at 1/2000, caught not posed, ultra realistic, 8k, photorealistic, editorial swimwear campaign
+wind | 896x1344 | 1 | Candid full-length editorial photograph, a beautiful 25-year-old fashion model on a sunlit terrace as a gust catches her hair and dress, both lifting mid-air, she narrows her eyes against the light and half-smiles, entire figure head to feet, long toned legs with correct natural anatomy, elegant ivory silk slip dress in motion, sun-kissed golden skin, warm backlit rim light through the fabric, Mediterranean villa terrace, shot on Canon EOS R5 85mm at 1/1600, unposed, alive, ultra realistic, 8k, photorealistic, Vogue fashion editorial

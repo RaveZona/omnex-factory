@@ -1,0 +1,16 @@
+# Direction v5 — the face type corrected.
+#
+# The founder's references are Latin/Mediterranean: near-black voluminous hair, warm
+# olive skin, large dark expressive eyes, strong dark brows, full lips, warm direct
+# energy. Every previous round built a Nordic blonde. That was a category error on my
+# part, not a fine-tuning problem — which is why each round missed no matter how the
+# lighting or posing changed.
+#
+# The references are film stills of real actresses. Nothing here reproduces a real
+# person: what is carried over is colouring, feature character and mood, all of which
+# describe thousands of people and identify none.
+#
+# Subject remains a clearly adult woman, mid-twenties.
+med-a | 896x1152 | 2 | Editorial beauty photograph of a strikingly beautiful 25-year-old Mediterranean woman, warm olive-tan skin with a natural dewy glow and real texture, very long thick voluminous dark brown almost black hair with soft natural waves falling past the shoulders, large expressive dark hazel-brown eyes with long dark lashes, strong well-defined dark eyebrows with a soft arch, full lips with a defined cupid's bow in a natural rosy tone, soft oval face with high cheekbones and a soft feminine jawline, warm inviting direct gaze into the lens, a faint knowing smile, soft warm directional light from one side, plain warm neutral background, shot on Canon EOS R5 85mm f1.8, ultra realistic, 8k, photorealistic, high fashion beauty campaign
+med-b | 896x1152 | 2 | Editorial beauty photograph of a strikingly beautiful 25-year-old Mediterranean woman with warm olive-tan skin, very long thick dark brown almost black hair blown across her shoulder, large dark hazel eyes holding the lens with warm confident intensity, strong dark defined brows, full natural lips slightly parted, high cheekbones and a soft jawline, delicate gold hoop earrings, wearing a simple white off-shoulder top, warm golden late afternoon sunlight from the side with soft shadow, blurred warm background, shot on Canon EOS R5 85mm f1.4, ultra realistic, 8k, photorealistic, cinematic beauty portrait
+med-body | 896x1344 | 2 | Full-length editorial photograph of a strikingly beautiful 25-year-old Mediterranean fashion model, warm olive-tan skin with a natural glow, very long thick dark brown almost black wavy hair, large dark expressive eyes, strong brows, full lips, athletic slim toned figure with a long torso, softly defined abdominal line, narrow hips and long straight legs with correct natural anatomy and defined calves, wearing an elegant deep red one-piece swimsuit, standing against a sunlit whitewashed wall with weight on one hip, warm confident direct gaze, hard Mediterranean sunlight casting a crisp shadow on the wall, entire body from head to feet in frame, shot on Hasselblad X2D 90mm f2.8, ultra realistic, 8k, photorealistic, editorial swimwear campaign
