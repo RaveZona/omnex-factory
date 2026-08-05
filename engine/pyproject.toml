@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omnex-engine"
+version = "0.1.0"
+description = "Production AI systems for OMNEX Factory — RAG, routing, agents, evals, guardrails, memory, serving."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# Deliberately empty.
+#
+# The core of this engine — money, time, ids, retry, tracing, cost accounting,
+# hybrid search, guardrails, the eval metrics — is written against the standard
+# library. That is not minimalism for its own sake: it means `pytest` runs the
+# whole suite on a bare interpreter, in CI, on a laptop with no network, and in
+# a container that has never seen a GPU. Every heavy dependency below is an
+# ADAPTER behind a Protocol, and every adapter has an in-repo counterpart that
+# the tests use instead. A test suite that needs an API key is a test suite that
+# stops being run.
+dependencies = []
+
+[project.optional-dependencies]
+# Serving the HTTP surfaces (P7 local-first, P16 pipeline, P15 approval API).
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "pydantic>=2.9", "httpx>=0.27"]
+
+# P5 observability export. The in-memory collector needs none of this.
+otel = [
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp-proto-http>=1.27",
+  "prometheus-client>=0.21",
+]
+
+# P2 router — the real multi-provider call path.
+llm = ["litellm>=1.51"]
+
+# P12 vector stores. sqlite-vec is the local default; qdrant is the scale path.
+vectors = ["sqlite-vec>=0.1.6", "qdrant-client>=1.12", "numpy>=1.26"]
+
+# P1 RAG document ingest and reranking.
+rag = ["pypdf>=5.1", "sentence-transformers>=3.3"]
+
+# P13 memory — cross-session sync.
+memory = ["redis>=5.2"]
+
+# P16 distributed execution.
+worker = ["celery>=5.4", "redis>=5.2"]
+
+# P3 / P1 graph and crew adapters. The in-repo runtime is the default.
+agents = ["langgraph>=0.2.45", "crewai>=0.86"]
+
+# P4 external metric backends. The in-repo metrics are the default.
+evals = ["deepeval>=2.0", "ragas>=0.2", "langsmith>=0.1.140"]
+
+# P9 fine-tuning. Never installed in CI.
+finetune = ["torch>=2.5", "transformers>=4.46", "peft>=0.13", "trl>=0.12", "datasets>=3.1"]
+
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omnex"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q --strict-markers"
+asyncio_mode = "auto"
+markers = [
+  "slow: needs a heavy optional dependency or a live service",
+  "adapter: exercises a third-party adapter; skipped when the dep is absent",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/omnex"]
+# Adapters import libraries that are not installed in CI. The Protocol on the
+# in-repo side is what mypy actually checks; the adapter is checked when its
+# extra is present.
+ignore_missing_imports = true

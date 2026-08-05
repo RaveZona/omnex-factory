@@ -48,3 +48,13 @@ packs/qc/
 .env
 .n8n/
 .searxng/
+
+# Python engine — virtualenv, caches, build output.
+engine/.venv/
+engine/**/__pycache__/
+engine/.pytest_cache/
+engine/.ruff_cache/
+engine/.mypy_cache/
+engine/*.egg-info/
+engine/dist/
+.omnex/
