@@ -192,14 +192,43 @@ class Gap:
 
 @dataclass
 class CoverageMatrix:
-    """Feature claims across a set of projects, and what is missing from all of them."""
+    """Feature claims across a set of projects, and what is missing from all of them.
+
+    ## Why an artifact can be mined but not counted
+
+    An artifact whose only text is a fifty-character registry summary tells us
+    almost nothing about what it does. Counting it as "does not claim model
+    routing" is wrong in a specific and dangerous way: `litellm`'s PyPI summary
+    is "Library to easily interface with LLM API providers", which mentions
+    neither routing nor cost — and litellm is one of the best known model
+    routers in the ecosystem.
+
+    Left uncorrected that produces the most confident possible version of the
+    wrong answer: a gap analysis reporting that NOBODY does model routing,
+    ranked top by rarity, published as an opportunity. The artifact was never
+    evidence either way.
+
+    So `min_corpus_chars` splits "did not claim it" from "we have no text to
+    judge by". Thin artifacts are recorded in `uninformative` and excluded from
+    the denominator — the same distinction the grounder draws when it calls a
+    sentence NO_CLAIM rather than unsupported.
+    """
 
     taxonomy: tuple[Feature, ...] = TAXONOMY
-    #: artifact id -> feature keys claimed
+    #: Below this much text, absence of a feature is absence of evidence.
+    #: A registry one-liner is ~50 chars; a README paragraph is several hundred.
+    min_corpus_chars: int = 200
+    #: artifact id -> feature keys claimed, for artifacts with enough text.
     claims: dict[str, set[str]] = field(default_factory=dict)
+    #: artifact id -> characters available, for those that had too little.
+    uninformative: dict[str, int] = field(default_factory=dict)
 
     def add(self, artifact: Artifact) -> list[FeatureHit]:
         hits = mine(artifact, self.taxonomy)
+        text = f"{artifact.description}\n{artifact.corpus}".strip()
+        if len(text) < self.min_corpus_chars:
+            self.uninformative[artifact.id] = len(text)
+            return hits
         self.claims[artifact.id] = {hit.feature.key for hit in hits}
         return hits
 

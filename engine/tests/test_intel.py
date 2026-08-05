@@ -384,6 +384,10 @@ def test_the_gap_analysis_finds_what_a_cluster_does_not_offer() -> None:
                 source="s",
                 url="u",
                 description="An agent framework with tool calling and a planner",
+                # Long enough to be informative — a one-liner would be excluded
+                # from the denominator rather than counted as lacking anything.
+                corpus="It orchestrates tools, decomposes tasks through a planner, and "
+                "runs them against a model provider of your choosing. " * 3,
             )
         )
 
@@ -397,7 +401,16 @@ def test_the_gap_analysis_finds_what_a_cluster_does_not_offer() -> None:
 def test_a_gap_nobody_would_pay_for_ranks_below_one_they_would() -> None:
     """Rarity alone would rank an unwanted capability as the top opportunity."""
     matrix = CoverageMatrix()
-    matrix.add(Artifact(id="a", name="n", source="s", url="u", description="a plain library"))
+    matrix.add(
+        Artifact(
+            id="a",
+            name="n",
+            source="s",
+            url="u",
+            description="a plain library",
+            corpus="It does one thing and does not concern itself with anything else at all. " * 4,
+        )
+    )
 
     ranked = matrix.gaps()
     top = ranked[0]
@@ -557,3 +570,40 @@ def test_revenue_arithmetic_is_exact_money_not_floats() -> None:
     assert opportunity.monthly_margin == Money.from_usd("700.00")
     assert opportunity.annual_margin == Money.from_usd("8400.00")
     assert opportunity.build_cost == Money.from_usd("3200.00")
+
+
+def test_an_artifact_with_only_a_registry_one_liner_is_excluded_not_counted_as_absent() -> None:
+    """The correction that stopped a wrong headline reaching a report.
+
+    litellm's PyPI summary is "Library to easily interface with LLM API
+    providers" — it mentions neither routing nor cost, and litellm is one of the
+    best known model routers there is. Counted naively it becomes evidence that
+    nobody does model routing, ranked top of the gap table by rarity, published
+    as an opportunity. Absence of evidence has to be recorded as absence of
+    evidence, not as a negative finding.
+    """
+    matrix = CoverageMatrix()
+    thin = Artifact(
+        id="pypi:litellm",
+        name="litellm",
+        source="pypi",
+        url="u",
+        description="Library to easily interface with LLM API providers",
+    )
+    thick = Artifact(
+        id="github:real",
+        name="real",
+        source="github",
+        url="u",
+        description="An agent framework",
+        corpus="It provides model routing with fallback, cost tracking per request, "
+        "observability through opentelemetry, and multi-tenant billing. " * 3,
+    )
+    matrix.add(thin)
+    matrix.add(thick)
+
+    assert "pypi:litellm" in matrix.uninformative
+    assert matrix.size == 1
+
+    # The one informative artifact claims routing, so routing is not a gap.
+    assert "model_routing" not in {gap.feature.key for gap in matrix.gaps()}
