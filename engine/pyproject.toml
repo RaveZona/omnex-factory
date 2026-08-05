@@ -85,7 +85,15 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-ignore = ["E501"]
+ignore = [
+  "E501",
+  # The prose in this repo uses real typography — σ in a statistics docstring,
+  # × in a ratio, · as a separator in CLI output. RUF001/RUF002 exist to catch
+  # homoglyph attacks in identifiers, which is a different problem from a
+  # deliberately-typeset comment.
+  "RUF001",
+  "RUF002",
+]
 
 [tool.mypy]
 python_version = "3.11"
