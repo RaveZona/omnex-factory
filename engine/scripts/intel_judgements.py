@@ -64,7 +64,11 @@ JUDGEMENTS: tuple[Judgement, ...] = (
             "with no confidence attached to it",
             "no stated protection against a skill that succeeds by doing something unsafe",
         ),
-        missing=("per-capability regression detection", "cost per successful task", "refusal scoring"),
+        missing=(
+            "per-capability regression detection",
+            "cost per successful task",
+            "refusal scoring",
+        ),
         enterprise_gaps=("multi-tenant skill isolation", "audit trail for skill changes"),
         original=(
             "OpenSpace scores a skill by outcome; FinGround (P17) shows that an outcome score "
@@ -205,7 +209,11 @@ JUDGEMENTS: tuple[Judgement, ...] = (
             "scanning capabilities before use cannot catch a capability that turns malicious "
             "after approval",
         ),
-        missing=("tamper-evident audit chain", "per-tenant policy", "injection corpus with measured rates"),
+        missing=(
+            "tamper-evident audit chain",
+            "per-tenant policy",
+            "injection corpus with measured rates",
+        ),
         enterprise_gaps=("SOC2 evidence export", "policy versioning"),
         original=(
             "DefenseClaw exports audit evidence; our P3 audit trail is hash-chained, where the "

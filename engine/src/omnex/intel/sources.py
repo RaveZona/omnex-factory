@@ -182,7 +182,9 @@ class NpmSource:
             tags=tuple(dependencies[:40]),
             corpus=description,
             evidence=(
-                Evidence(url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH),
+                Evidence(
+                    url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH
+                ),
             ),
         )
 
@@ -216,7 +218,9 @@ class CratesSource:
             popularity_kind="downloads",
             corpus=description,
             evidence=(
-                Evidence(url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH),
+                Evidence(
+                    url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH
+                ),
             ),
         )
 
@@ -247,9 +251,13 @@ class DockerHubSource:
             licence="",
             popularity=int(payload.get("pull_count") or 0),
             popularity_kind="pulls",
-            corpus=_excerpt(f"{payload.get('description', '')} {payload.get('full_description', '')}"),
+            corpus=_excerpt(
+                f"{payload.get('description', '')} {payload.get('full_description', '')}"
+            ),
             evidence=(
-                Evidence(url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH),
+                Evidence(
+                    url=page, fetched_on=today, excerpt=description, confidence=Confidence.HIGH
+                ),
             ),
         )
 
@@ -273,4 +281,3 @@ def fetch_all(
         except SourceUnavailable as exc:
             failed.append((identifier, str(exc)))
     return found, failed
-

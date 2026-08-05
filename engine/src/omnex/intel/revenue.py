@@ -199,7 +199,9 @@ class Portfolio:
             f"{'#':<3} {'opportunity':<34} {'model':<18} {'payback':>9} {'annual':>12} {'pri':>6}",
         ]
         for index, item in enumerate(self.build_order(), 1):
-            payback = "never" if item.payback_months == float("inf") else f"{item.payback_months:.1f}mo"
+            payback = (
+                "never" if item.payback_months == float("inf") else f"{item.payback_months:.1f}mo"
+            )
             lines.append(
                 f"{index:<3} {item.name[:34]:<34} {item.model:<18} {payback:>9} "
                 f"{item.annual_margin.format_adaptive():>12} {item.priority:>6.1f}"

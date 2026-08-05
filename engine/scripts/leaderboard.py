@@ -73,9 +73,11 @@ def run(system: str) -> dict[str, object]:
         ).answer(case.question)
 
         if case.expect_refusal:
-            return answer.text, {
-                "refusal_accuracy": refusal_accuracy(answer.text, expect_refusal=True)
-            }, answer.cost
+            return (
+                answer.text,
+                {"refusal_accuracy": refusal_accuracy(answer.text, expect_refusal=True)},
+                answer.cost,
+            )
 
         metrics = {
             "context_recall": context_recall(answer.hits, case.relevant_chunks),

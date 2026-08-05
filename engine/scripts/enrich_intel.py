@@ -101,21 +101,33 @@ class Reading:
 #: Tier 1 — chosen by OMNEX relevance, not by star count.
 READINGS: tuple[Reading, ...] = (
     Reading(
-        "HKUDS/OpenSpace", 7300, 881, "Python", "MIT",
+        "HKUDS/OpenSpace",
+        7300,
+        881,
+        "Python",
+        "MIT",
         "OpenSpace: The Skill Management Layer for AI Agents",
         "Skill retrieval, quality evaluation by real task outcomes, controlled evolution "
         "(FIX, DERIVED, CAPTURED), local-first hub. Python 3.12+, LiteLLM, SQLite, MCP, "
         "React + TypeScript dashboard. 7300 stars, 881 forks, MIT.",
     ),
     Reading(
-        "openmemind/memind", 903, 91, "Java", "Apache-2.0",
+        "openmemind/memind",
+        903,
+        91,
+        "Java",
+        "Apache-2.0",
         "Self-evolving cognitive memory and context engine for AI agents in Java",
         "Memory graphs, threads and Insight Trees; retrieval via REST, MCP, SDKs. Claims "
         "#1 among listed baselines on LoCoMo 86.88, LongMemEval 84.20, PersonaMem 67.91. "
         "903 stars, 91 forks, Apache-2.0.",
     ),
     Reading(
-        "facebookresearch/HyperAgents", 2700, 348, "Python", "CC BY-NC-SA 4.0",
+        "facebookresearch/HyperAgents",
+        2700,
+        348,
+        "Python",
+        "CC BY-NC-SA 4.0",
         "Self-referential self-improving agents that can optimize for any computable task",
         "Meta-agent generates and refines task-specific agents in a feedback loop; executes "
         "model-generated code in isolated domains. Python 3.12, Docker. Carries a safety "
@@ -123,7 +135,11 @@ READINGS: tuple[Reading, ...] = (
         "licensed CC BY-NC-SA 4.0.",
     ),
     Reading(
-        "neo4j-labs/create-context-graph", 704, 98, "Python", "Apache-2.0",
+        "neo4j-labs/create-context-graph",
+        704,
+        98,
+        "Python",
+        "Apache-2.0",
         "AI agents with graph based reasoning memory, scaffolded in seconds",
         "Scaffolds a full-stack agent app: FastAPI backend, neo4j-agent-memory, LiteLLM "
         "provider injection, Next.js frontend with SSE streaming and graph visualisation. "
@@ -131,14 +147,22 @@ READINGS: tuple[Reading, ...] = (
         "704 stars, 98 forks, Apache-2.0.",
     ),
     Reading(
-        "InternLM/WildClawBench", 500, 56, "Python", "MIT",
+        "InternLM/WildClawBench",
+        500,
+        56,
+        "Python",
+        "MIT",
         "An in-the-wild benchmark for AI agents in the OpenClaw Environment",
         "60 tasks over six categories including Safety Alignment; graded 0.00-1.00 across "
         "four harnesses. Leaderboard reports execution time and API cost per model. "
         "500 stars, 56 forks, MIT.",
     ),
     Reading(
-        "cisco-ai-defense/defenseclaw", 806, 139, "Go", "Apache-2.0",
+        "cisco-ai-defense/defenseclaw",
+        806,
+        139,
+        "Go",
+        "Apache-2.0",
         "Security governance for OpenClaw and agentic AI runtimes",
         "Scan capabilities before use, inspect runtime traffic, export durable audit "
         "evidence. Python CLI, Go gateway, policy engines, scanners, observability "
@@ -146,63 +170,99 @@ READINGS: tuple[Reading, ...] = (
         "proving an agent risk-free. 806 stars, 139 forks, Apache-2.0.",
     ),
     Reading(
-        "slowmist/slowmist-agent-security", 500, 30, "Markdown", "MIT",
+        "slowmist/slowmist-agent-security",
+        500,
+        30,
+        "Markdown",
+        "MIT",
         "A comprehensive security review framework for AI agents in adversarial environments",
         "Review procedures for skills, repositories, URLs and blockchain addresses. "
         "Principle: every external input is untrusted until verified. Detection patterns "
         "across 26 attack categories with a risk-rating system. 500 stars, 30 forks, MIT.",
     ),
     Reading(
-        "patoles/agent-flow", 1500, 162, "TypeScript", "Apache-2.0",
+        "patoles/agent-flow",
+        1500,
+        162,
+        "TypeScript",
+        "Apache-2.0",
         "Real-time visualization of Claude Code agent orchestration",
         "Event relay server receiving agent hooks over HTTP and streaming via SSE, Next.js "
         "canvas for the node graph, VS Code extension. Concurrent multi-session monitoring "
         "and JSONL replay. 1500 stars, 162 forks, Apache-2.0.",
     ),
     Reading(
-        "saltbo/agent-kanban", 434, 35, "TypeScript", "FSL-1.1-ALv2",
+        "saltbo/agent-kanban",
+        434,
+        35,
+        "TypeScript",
+        "FSL-1.1-ALv2",
         "An agent-first task board, Mission control for your AI workforce",
         "Each agent gets an Ed25519 identity, claims tasks, opens pull requests and "
         "self-organises into teams. Task dependencies and cross-repository support. "
         "434 stars, 35 forks, FSL-1.1-ALv2 converting to Apache-2.0 after two years.",
     ),
     Reading(
-        "soulduse/ai-token-monitor", 306, 51, "TypeScript", "MIT",
+        "soulduse/ai-token-monitor",
+        306,
+        51,
+        "TypeScript",
+        "MIT",
         "macOS menu bar app for tracking Claude Code token usage and costs",
         "Rust backend watches local JSONL session files, parses token counts, applies "
         "per-model pricing including cache read costs. Offline by default. Optional "
         "Supabase and webhook integrations. 306 stars, 51 forks, MIT.",
     ),
     Reading(
-        "oguzbilgic/agent-kernel", 335, 40, "Markdown", "MIT",
+        "oguzbilgic/agent-kernel",
+        335,
+        40,
+        "Markdown",
+        "MIT",
         "Minimal kernel to make any AI coding agent stateful",
         "Three markdown files as the kernel — AGENTS.md, IDENTITY.md, KNOWLEDGE.md — plus "
         "knowledge/ and append-only notes/ directories in a git repository. No database "
         "and no vector store. 335 stars, 40 forks, MIT.",
     ),
     Reading(
-        "Ataraxy-Labs/opensessions", 1200, 70, "Rust", "MIT",
+        "Ataraxy-Labs/opensessions",
+        1200,
+        70,
+        "Rust",
+        "MIT",
         "tmux sidebar for coding agents with per-thread markers and a local HTTP API",
         "Sidebar showing live session state, status pills, logs and detected localhost "
         "ports inside tmux. Local HTTP API lets scripts and agents push metadata. "
         "1200 stars, 70 forks, MIT.",
     ),
     Reading(
-        "ovoment/ovo-local-llm", 104, 18, "TypeScript", "MIT",
+        "ovoment/ovo-local-llm",
+        104,
+        18,
+        "TypeScript",
+        "MIT",
         "A private Claude-Code-style coding agent for Apple Silicon",
         "MLX-native, Ollama and OpenAI API compatible, zero API keys. Monaco editor, git "
         "panel, terminal, MCP servers, local diffusion image generation, document RAG and "
         "LoRA fine-tuning. 104 stars, 18 forks, MIT.",
     ),
     Reading(
-        "slavingia/skills", 9800, 1000, "Markdown", "",
+        "slavingia/skills",
+        9800,
+        1000,
+        "Markdown",
+        "",
         "Claude Code skills based on The Minimalist Entrepreneur",
         "10 skills covering community, idea validation, MVP, first customers, pricing, "
         "marketing, growth, values and business review. Installed through the Claude Code "
         "plugin marketplace. 9800 stars, 1000 forks, no licence file.",
     ),
     Reading(
-        "alvinunreal/awesome-opensource-ai", 4400, 563, "Markdown", "CC0-1.0",
+        "alvinunreal/awesome-opensource-ai",
+        4400,
+        563,
+        "Markdown",
+        "CC0-1.0",
         "Curated list of the best truly open-source AI projects, models, tools",
         "Daily updated curation of models, development tools and infrastructure, scoped to "
         "genuinely open-source projects. 4400 stars, 563 forks, CC0-1.0.",

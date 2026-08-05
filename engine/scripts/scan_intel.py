@@ -68,7 +68,9 @@ def velocities(snapshot: Snapshot, evidence: EvidenceFile) -> dict[str, Velocity
         earlier = observed.get(artifact.name)
         if earlier is None or artifact.popularity_kind != "stars":
             continue
-        later = type(earlier)(artifact.name, artifact.popularity, evidence.fetched_on, earlier.domain)
+        later = type(earlier)(
+            artifact.name, artifact.popularity, evidence.fetched_on, earlier.domain
+        )
         out[artifact.id] = Velocity.between(earlier, later)
     return out
 
@@ -249,7 +251,11 @@ def _project_sections(
         "",
         f"**13 · Automation potential.** Integration cost scored {judgement.integration_cost:.2f}; "
         f"licence `{artifact.licence or 'none stated'}` "
-        + ("permits building on it." if artifact.absorbable else "**does not permit building on it.**"),
+        + (
+            "permits building on it."
+            if artifact.absorbable
+            else "**does not permit building on it.**"
+        ),
         "",
         "**14 · AI integration opportunities.** Advertises "
         + (
@@ -346,7 +352,7 @@ def render_features(evidence: EvidenceFile) -> str:
         "are excluded from the counts below, because the only text collected for them is a",
         "registry one-liner. Counting those as *does not claim it* produces the most confident",
         "possible version of a wrong answer: `litellm`'s summary is \"Library to easily",
-        "interface with LLM API providers\", which mentions neither routing nor cost — and",
+        'interface with LLM API providers", which mentions neither routing nor cost — and',
         "litellm is one of the best known model routers in the ecosystem. Scored naively it",
         "would appear in the gap table as evidence that nobody does model routing.",
         "",
@@ -375,7 +381,9 @@ def render_features(evidence: EvidenceFile) -> str:
         "",
     ]
     saturated = matrix.saturated()
-    lines += _bullets(tuple(f"`{gap.feature.key}` — claimed by {gap.claimed_by}" for gap in saturated))
+    lines += _bullets(
+        tuple(f"`{gap.feature.key}` — claimed by {gap.claimed_by}" for gap in saturated)
+    )
 
     lines += [
         "",
@@ -736,7 +744,9 @@ def render_roadmap() -> str:
     }
     for index, opportunity in enumerate(portfolio.build_order(), 1):
         payback = (
-            "never" if opportunity.payback_months == float("inf") else f"{opportunity.payback_months:.1f}mo"
+            "never"
+            if opportunity.payback_months == float("inf")
+            else f"{opportunity.payback_months:.1f}mo"
         )
         lines.append(
             f"| {index} | {opportunity.name} | {opportunity.complexity.developer_days} | "

@@ -204,7 +204,8 @@ def test_a_stalled_project_never_outranks_a_compounding_one(snapshot: Snapshot) 
     """
     names = snapshot.by_name()
     stalled = Velocity.between(
-        names["oguzbilgic/agent-kernel"], Observation("oguzbilgic/agent-kernel", 335, date(2026, 8, 5))
+        names["oguzbilgic/agent-kernel"],
+        Observation("oguzbilgic/agent-kernel", 335, date(2026, 8, 5)),
     )
     compounding = Velocity.between(
         names["openmemind/memind"], Observation("openmemind/memind", 903, date(2026, 8, 5))
@@ -212,7 +213,9 @@ def test_a_stalled_project_never_outranks_a_compounding_one(snapshot: Snapshot) 
     assert stalled.stalled
     assert not compounding.stalled
 
-    artifact = Artifact(id="x", name="x", source="github", url="https://example.test/x", licence="MIT")
+    artifact = Artifact(
+        id="x", name="x", source="github", url="https://example.test/x", licence="MIT"
+    )
     slow = assess(artifact, stalled, relevance=0.8, relevance_note="n", integration_cost=0.3)
     fast = assess(artifact, compounding, relevance=0.8, relevance_note="n", integration_cost=0.3)
 
@@ -334,7 +337,9 @@ def test_uncited_prose_is_not_checked_and_does_not_block_publication() -> None:
     Requiring a citation on every sentence would make the connective tissue of a
     document unpublishable, which is how a verification pass gets switched off.
     """
-    result = verify_document("This section explains why the ranking is split in two.", _evidence_file())
+    result = verify_document(
+        "This section explains why the ranking is split in two.", _evidence_file()
+    )
 
     assert result.publishable
     assert result.checked_sentences == 0
@@ -486,7 +491,9 @@ def test_every_architecture_claim_carries_the_manifest_that_produced_it() -> Non
 def test_a_score_prints_the_arithmetic_that_produced_it() -> None:
     """An unfalsifiable number is either accepted whole or discarded whole."""
     artifact = Artifact(id="a", name="thing", source="s", url="u", licence="MIT")
-    result = assess(artifact, None, relevance=0.9, relevance_note="overlaps P13", integration_cost=0.2)
+    result = assess(
+        artifact, None, relevance=0.9, relevance_note="overlaps P13", integration_cost=0.2
+    )
 
     explanation = result.opportunity.explain()
     assert "omnex_relevance" in explanation

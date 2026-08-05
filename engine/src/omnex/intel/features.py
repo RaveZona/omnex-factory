@@ -95,7 +95,9 @@ TAXONOMY: tuple[Feature, ...] = (
     _f("reasoning", "agents", "chain of thought", "reasoning", "reflection"),
     _f("memory", "agents", "memory", "long-term memory", "episodic", value=2),
     _f("workflow_engine", "agents", "workflow", "state machine", "dag", "graph execution"),
-    _f("human_in_the_loop", "agents", "human-in-the-loop", "human in the loop", "approval", value=3),
+    _f(
+        "human_in_the_loop", "agents", "human-in-the-loop", "human in the loop", "approval", value=3
+    ),
     _f("skills", "agents", "skill", "skills", "plugin", "extension"),
     # ── platform ─────────────────────────────────────────────────────────
     _f("auth", "platform", "authentication", "oauth", "sso", "api key", value=2),
@@ -117,7 +119,14 @@ TAXONOMY: tuple[Feature, ...] = (
     _f("security", "operations", "guardrail", "prompt injection", "pii", "security", value=3),
     # ── economics ────────────────────────────────────────────────────────
     _f("model_routing", "economics", "model routing", "router", "fallback", value=3),
-    _f("cost_optimization", "economics", "cost optimization", "cost tracking", "token cost", value=3),
+    _f(
+        "cost_optimization",
+        "economics",
+        "cost optimization",
+        "cost tracking",
+        "token cost",
+        value=3,
+    ),
     _f("prompt_management", "economics", "prompt management", "prompt template", "versioning"),
     _f("local_models", "economics", "ollama", "llama.cpp", "local model", "on-premise", value=2),
     _f("quantization", "economics", "quantization", "quantized", "gguf", "awq"),
