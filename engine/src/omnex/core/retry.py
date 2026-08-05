@@ -185,7 +185,7 @@ async def retry_call_async(
         else:
             if on_attempt:
                 on_attempt(Attempt(attempt, None, 0.0, will_retry=False))
-            return result  # type: ignore[return-value]
+            return result
 
     assert last is not None
     raise last

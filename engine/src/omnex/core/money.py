@@ -45,10 +45,12 @@ class Money:
 
     __slots__ = ("_picos",)
 
+    _picos: int
+
     def __init__(self, picos: int) -> None:
         if not isinstance(picos, int) or isinstance(picos, bool):
             raise TypeError(f"Money is built from an integer count of picos, got {type(picos)!r}")
-        object.__setattr__(self, "_picos", picos)
+        self._picos = picos
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod

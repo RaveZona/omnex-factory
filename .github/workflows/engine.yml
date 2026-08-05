@@ -1,0 +1,79 @@
+name: Engine
+
+# The Python engine's own check, separate from the Next.js one in ci.yml.
+#
+# Separate because they fail for unrelated reasons and have unrelated runtimes:
+# a Postgres container has nothing to do with a mypy error, and folding them
+# into one job means a five-second type failure waits on a two-minute Docker
+# pull before it reports.
+#
+# The whole suite runs with NO API key, NO network and NO container. That is a
+# design constraint of the engine rather than a property of this workflow — every
+# heavy dependency sits behind a Protocol with an in-repo implementation the
+# tests use. It is also why this job takes seconds: a test suite that needs
+# credentials is a test suite that quietly stops being run.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    paths:
+      - "engine/**"
+      - "deploy/observability/**"
+      - ".github/workflows/engine.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: engine-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: engine
+
+jobs:
+  check:
+    name: Types, lint, tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor (StrEnum, datetime.UTC). 3.13 is here to catch
+        # deprecations before an image upgrade turns them into a production
+        # incident rather than a CI failure.
+        python: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: engine/pyproject.toml
+
+      - name: Install
+        run: uv venv --python ${{ matrix.python }} && uv pip install -e '.[dev]'
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      - name: Format
+        run: uv run ruff format --check src tests
+
+      - name: Types
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run pytest tests/ -q
+
+      - name: Confirm the suite needs no credentials
+        # The claim above is worth enforcing rather than trusting. Running with
+        # the environment stripped catches the first test that quietly starts
+        # depending on a key that happens to be present on a developer machine.
+        env:
+          OPENAI_API_KEY: ""
+          ANTHROPIC_API_KEY: ""
+          GROQ_API_KEY: ""
+          OTEL_EXPORTER_OTLP_ENDPOINT: ""
+        run: uv run pytest tests/ -q

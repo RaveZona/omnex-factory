@@ -24,6 +24,7 @@ being broken down by model is a metric someone will misread.
 from __future__ import annotations
 
 import threading
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -81,7 +82,7 @@ class _Series:
         self.overflowed = 0
         self._lock = threading.Lock()
 
-    def key(self, labels: dict[str, str] | None, known: dict[Labels, object]) -> Labels:
+    def key(self, labels: dict[str, str] | None, known: Mapping[Labels, object]) -> Labels:
         k = _normalise(self.label_names, labels)
         if k in known or len(known) < self.max_series:
             return k
@@ -154,6 +155,10 @@ class Gauge:
     def value(self, **labels: str) -> float:
         return self.values.get(_normalise(self.label_names, labels), 0.0)
 
+    @property
+    def overflowed(self) -> int:
+        return self._series.overflowed
+
 
 @dataclass
 class Timer:
@@ -197,6 +202,10 @@ class Timer:
 
     def time(self, clock: Clock | None = None, **labels: str) -> _TimerContext:
         return _TimerContext(self, clock or SystemClock(), labels)
+
+    @property
+    def overflowed(self) -> int:
+        return self._series.overflowed
 
 
 class _TimerContext:
@@ -312,8 +321,13 @@ class MetricsRegistry:
         # A metric that silently stopped being broken down is worse than one
         # that never was, so overflow is published rather than logged.
         overflow_lines = []
-        for metric in (*self._counters.values(), *self._gauges.values(), *self._timers.values()):
-            n = metric._series.overflowed
+        every_metric: list[Counter | Gauge | Timer] = [
+            *self._counters.values(),
+            *self._gauges.values(),
+            *self._timers.values(),
+        ]
+        for metric in every_metric:
+            n = metric.overflowed
             if n:
                 overflow_lines.append(f'omnex_metric_overflow_total{{metric="{metric.name}"}} {n}')
         if overflow_lines:
