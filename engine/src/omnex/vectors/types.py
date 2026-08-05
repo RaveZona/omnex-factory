@@ -27,16 +27,31 @@ class Chunk:
     id: str
     text: str
     doc_id: str = ""
-    #: 1-based page number in the source document, 0 when there are no pages.
+    #: 1-based page number where this chunk starts, 0 when there are no pages.
     page: int = 0
+    #: Last page this chunk covers. Equal to `page` unless the chunk straddles a
+    #: page break — which is common, and is exactly where a naive "which page
+    #: was this on" reconstruction gets it wrong. Citing one page for a claim
+    #: that spans two sends the reader to the half that does not contain it.
+    page_end: int = 0
     #: Character offsets within the source, for exact highlight and audit.
     char_span: tuple[int, int] = (0, 0)
     #: Arbitrary metadata used for filtering — tenant, source, date, section.
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
+    def pages(self) -> tuple[int, ...]:
+        if not self.page:
+            return ()
+        last = max(self.page, self.page_end)
+        return tuple(range(self.page, last + 1))
+
+    @property
     def cite(self) -> str:
-        return f"[p. {self.page}]" if self.page else f"[{self.doc_id or self.id}]"
+        if not self.page:
+            return f"[{self.doc_id or self.id}]"
+        last = max(self.page, self.page_end)
+        return f"[p. {self.page}]" if last == self.page else f"[pp. {self.page}–{last}]"
 
 
 @dataclass(frozen=True)
