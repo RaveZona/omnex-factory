@@ -93,6 +93,7 @@ ignore = [
   # deliberately-typeset comment.
   "RUF001",
   "RUF002",
+  "RUF003",
 ]
 
 [tool.mypy]
