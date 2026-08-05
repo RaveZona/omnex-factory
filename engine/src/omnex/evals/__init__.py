@@ -25,6 +25,7 @@ from .metrics import (
     context_precision,
     context_recall,
     faithfulness,
+    refusal_accuracy,
 )
 from .runner import CaseResult, EvalRunner, Gate, GateDecision, RunReport, Trend, load_baseline
 
@@ -47,5 +48,6 @@ __all__ = [
     "context_recall",
     "faithfulness",
     "load_baseline",
+    "refusal_accuracy",
     "require_clean",
 ]

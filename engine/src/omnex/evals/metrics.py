@@ -237,6 +237,31 @@ def citation_accuracy(answer: str, must_cite: Sequence[int]) -> MetricResult:
     )
 
 
+def refusal_accuracy(
+    answer: str, expect_refusal: bool, refusal_marker: str = "do not contain"
+) -> MetricResult:
+    """Did the system refuse exactly when it should have?
+
+    Its own metric because scoring a refusal with a relevancy or correctness
+    measure is nonsense in both directions: a correct refusal shares no content
+    words with the question and scores zero, while a confidently wrong answer to
+    an unanswerable question scores well. Both push a system toward answering
+    everything, which is the failure the refusal cases exist to catch.
+    """
+    refused = refusal_marker.lower() in answer.lower() or not answer.strip()
+    if expect_refusal:
+        return MetricResult(
+            "refusal_accuracy",
+            1.0 if refused else 0.0,
+            "correctly refused" if refused else "answered a question the corpus cannot answer",
+        )
+    return MetricResult(
+        "refusal_accuracy",
+        0.0 if refused else 1.0,
+        "refused an answerable question" if refused else "answered as expected",
+    )
+
+
 def answer_correctness(answer: str, expected: str) -> MetricResult:
     """Overlap with the expected answer.
 
