@@ -142,6 +142,18 @@ class GuardrailBlocked(PermanentError):
     def as_dict(self) -> dict[str, Any]:
         return {**super().as_dict(), "findings": [str(f) for f in self.findings]}
 
+    def __str__(self) -> str:
+        """Include the findings.
+
+        An exception that says only "blocked by guardrails" sends whoever reads
+        the log back to reproduce the request to learn which rule fired. The
+        rule names are the entire useful content of this error.
+        """
+        base = super().__str__()
+        if not self.findings:
+            return base
+        return f"{base} [{', '.join(str(f) for f in self.findings)}]"
+
 
 class ValidationFailed(PermanentError):
     code = "validation_failed"
