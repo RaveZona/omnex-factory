@@ -71,7 +71,10 @@ packages = ["src/omnex"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# `scripts` is on the path because the generators in it — the eval gate, the
+# benchmark builder, the leaderboard — are part of the deliverable and are
+# tested, not loose utilities that happen to live in the repo.
+pythonpath = ["src", "scripts"]
 addopts = "-q --strict-markers"
 asyncio_mode = "auto"
 markers = [

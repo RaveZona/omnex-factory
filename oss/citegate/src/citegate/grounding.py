@@ -41,10 +41,81 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from ..vectors.embed import tokenize
-from ..vectors.types import Chunk
+_WORD = re.compile(r"[a-z0-9']+")
 
-__all__ = ["CITATION_PATTERN", "GroundedAnswer", "Grounder", "GroundingVerdict", "SentenceCheck"]
+#: Sentence terminator, whitespace, then a capital or digit. The lookbehind also
+#: accepts \x00, which is the citation mask below — without that, a sentence
+#: ending in a citation never splits and one unsupported clause condemns every
+#: supported claim beside it.
+_SENTENCE = re.compile(r"(?<=[.!?\x00])\s+(?=[A-Z0-9\"'(\[])")
+_ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "vs.", "cf.", "no.", "fig.", "approx."}
+#: Citations are masked before splitting: "…twenty. [p. 12]" otherwise splits
+#: twice, once detaching the citation and once INSIDE it ("[p." / "12]"), and
+#: either makes a correctly-cited claim read as uncited.
+_CITATION_SPAN = re.compile(r"\[[^\]\n]{0,40}\]")
+_MASK = "\x00{}\x00"
+
+
+def tokenize(text: str) -> list[str]:
+    return _WORD.findall(text.lower())
+
+
+def split_sentences(text: str) -> list[str]:
+    """Sentence split that survives abbreviations and keeps citations attached."""
+    citations: list[str] = []
+
+    def mask(match: re.Match[str]) -> str:
+        citations.append(match.group(0))
+        return _MASK.format(len(citations) - 1)
+
+    parts = _SENTENCE.split(_CITATION_SPAN.sub(mask, text.strip()))
+
+    merged: list[str] = []
+    for part in parts:
+        words = merged[-1].split() if merged else []
+        if merged and words and words[-1].lower() in _ABBREVIATIONS:
+            merged[-1] = f"{merged[-1]} {part}"
+        else:
+            merged.append(part)
+
+    out = []
+    for sentence in merged:
+        for index, citation in enumerate(citations):
+            sentence = sentence.replace(_MASK.format(index), citation)
+        if sentence.strip():
+            out.append(sentence.strip())
+    return out
+
+
+@dataclass(frozen=True)
+class Source:
+    """One retrieved passage and the page it came from.
+
+    Deliberately minimal, so adapting a LangChain Document or a LlamaIndex Node
+    is one line rather than an integration.
+    """
+
+    page: int
+    text: str
+    #: Last page, when the passage spans a break. A claim on a page boundary
+    #: must be citable to both.
+    page_end: int = 0
+
+    @property
+    def pages(self) -> tuple[int, ...]:
+        last = max(self.page, self.page_end)
+        return tuple(range(self.page, last + 1))
+
+
+__all__ = [
+    "CITATION_PATTERN",
+    "GroundedAnswer",
+    "Grounder",
+    "SentenceCheck",
+    "Source",
+    "Verdict",
+    "split_sentences",
+]
 
 CITATION_PATTERN = re.compile(r"\[(?:pp?\.?|pages?)\s*(\d+)(?:\s*[–-]\s*(\d+))?\]", re.IGNORECASE)
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?%?")
@@ -185,7 +256,7 @@ _STOPWORDS = frozenset(
 )
 
 
-class GroundingVerdict(StrEnum):
+class Verdict(StrEnum):
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
     FABRICATED_CITATION = "fabricated_citation"
@@ -197,7 +268,7 @@ class GroundingVerdict(StrEnum):
 @dataclass(frozen=True)
 class SentenceCheck:
     sentence: str
-    verdict: GroundingVerdict
+    verdict: Verdict
     cited_pages: tuple[int, ...] = ()
     #: Fraction of the sentence's content words found in the cited chunk.
     overlap: float = 0.0
@@ -206,7 +277,7 @@ class SentenceCheck:
 
     @property
     def keep(self) -> bool:
-        return self.verdict in (GroundingVerdict.SUPPORTED, GroundingVerdict.NO_CLAIM)
+        return self.verdict in (Verdict.SUPPORTED, Verdict.NO_CLAIM)
 
 
 @dataclass
@@ -228,7 +299,7 @@ class GroundedAnswer:
 
     @property
     def support_rate(self) -> float:
-        claims = [c for c in self.checks if c.verdict is not GroundingVerdict.NO_CLAIM]
+        claims = [c for c in self.checks if c.verdict is not Verdict.NO_CLAIM]
         if not claims:
             return 1.0
         return sum(1 for c in claims if c.keep) / len(claims)
@@ -255,8 +326,8 @@ class Grounder:
     #: Sentences with fewer content words than this assert nothing.
     min_content_words: int = 3
 
-    def check(self, answer: str, evidence: Sequence[Chunk]) -> GroundedAnswer:
-        by_page: dict[int, list[Chunk]] = {}
+    def check(self, answer: str, evidence: Sequence[Source]) -> GroundedAnswer:
+        by_page: dict[int, list[Source]] = {}
         for chunk in evidence:
             for page in chunk.pages or (0,):
                 by_page.setdefault(page, []).append(chunk)
@@ -278,7 +349,7 @@ class Grounder:
             pages_cited=tuple(sorted(pages_used)),
         )
 
-    def _check_sentence(self, sentence: str, by_page: dict[int, list[Chunk]]) -> SentenceCheck:
+    def _check_sentence(self, sentence: str, by_page: dict[int, list[Source]]) -> SentenceCheck:
         cited = _cited_pages(sentence)
         # The claim is the sentence WITHOUT its citation. Leaving the citation
         # in means the page number is checked as if it were an asserted figure —
@@ -299,17 +370,17 @@ class Grounder:
         # is 4.2%." has two content words and is entirely an assertion.
         looks_like_prose = len(content) < self.min_content_words
         if looks_like_prose and not cited and not _quantities(claim):
-            return SentenceCheck(sentence, GroundingVerdict.NO_CLAIM, cited)
+            return SentenceCheck(sentence, Verdict.NO_CLAIM, cited)
 
         if not cited:
-            return SentenceCheck(sentence, GroundingVerdict.UNCITED)
+            return SentenceCheck(sentence, Verdict.UNCITED)
 
         supporting = [c for page in cited for c in by_page.get(page, [])]
         if not supporting:
             # The model named a page that was never retrieved. There is nothing
             # to verify against, and the citation is doing active harm by
             # making the claim look checked.
-            return SentenceCheck(sentence, GroundingVerdict.FABRICATED_CITATION, cited)
+            return SentenceCheck(sentence, Verdict.FABRICATED_CITATION, cited)
 
         best_overlap = 0.0
         best_missing: tuple[str, ...] = ()
@@ -322,16 +393,14 @@ class Grounder:
 
         if best_missing:
             return SentenceCheck(
-                sentence, GroundingVerdict.UNSUPPORTED, cited, best_overlap, best_missing
+                sentence, Verdict.UNSUPPORTED, cited, best_overlap, best_missing
             )
         if best_overlap < self.min_overlap:
-            return SentenceCheck(sentence, GroundingVerdict.UNSUPPORTED, cited, best_overlap)
-        return SentenceCheck(sentence, GroundingVerdict.SUPPORTED, cited, best_overlap)
+            return SentenceCheck(sentence, Verdict.UNSUPPORTED, cited, best_overlap)
+        return SentenceCheck(sentence, Verdict.SUPPORTED, cited, best_overlap)
 
 
 def _sentences(text: str) -> list[str]:
-    from .ingest import split_sentences
-
     return split_sentences(text)
 
 

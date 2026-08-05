@@ -49,12 +49,14 @@ packs/qc/
 .n8n/
 .searxng/
 
-# Python engine — virtualenv, caches, build output.
-engine/.venv/
-engine/**/__pycache__/
-engine/.pytest_cache/
-engine/.ruff_cache/
-engine/.mypy_cache/
-engine/*.egg-info/
-engine/dist/
+# Python — virtualenvs, caches, build output. Repo-wide rather than scoped to
+# engine/, because oss/ packages are separate distributions with their own
+# caches and a scoped rule silently stops covering the next one.
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+**/dist/
 .omnex/

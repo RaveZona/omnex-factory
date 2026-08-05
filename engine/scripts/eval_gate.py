@@ -32,8 +32,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from omnex.core import FakeClock, IdFactory, Money  # noqa: E402
-from omnex.evals import (  # noqa: E402
+from omnex.core import FakeClock, IdFactory, Money
+from omnex.evals import (
     EvalRunner,
     Gate,
     GoldenCase,
@@ -47,9 +47,8 @@ from omnex.evals import (  # noqa: E402
     load_baseline,
     refusal_accuracy,
 )
-from omnex.rag import REFUSAL, Document, RagConfig, RagPipeline, chunk_document  # noqa: E402
-from omnex.vectors import HashingEmbedder, HybridStore  # noqa: E402
-
+from omnex.rag import REFUSAL, Document, RagConfig, RagPipeline, chunk_document
+from omnex.vectors import HashingEmbedder, HybridStore
 
 #: Below this question-term coverage, the best sentence in the corpus is not an
 #: answer and the extractive baseline says so. Without a refusal path a baseline
