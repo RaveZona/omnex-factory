@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from random import Random
 
 import pytest
@@ -176,6 +177,42 @@ def test_sentences_survive_common_abbreviations():
         "The limit is 20.",
         "See fig. 4 for detail.",
     ]
+
+
+def test_splitting_a_long_document_stays_linear_in_its_citations():
+    """The regression guard for a quadratic that no correctness test could see.
+
+    Citations are masked before splitting and restored afterwards. The original
+    restore walked the document's whole citation list once per sentence, which
+    is O(sentences x citations): correct on every input, invisible on a
+    three-sentence answer, and 4.5 seconds on a four-thousand-sentence filing —
+    where ingestion actually runs.
+
+    Asserted as a growth ratio rather than a wall-clock bound, because an
+    absolute threshold on a shared CI runner measures the runner. Eight times
+    the input costs eight times the work when linear and sixty-four when
+    quadratic; the bound below sits well clear of the first and nowhere near
+    the second.
+    """
+    sentence = "Revenue for the quarter was 4.2 million euro. [p. 7]"
+
+    def elapsed(count: int) -> float:
+        text = " ".join([sentence] * count)
+        best = float("inf")
+        for _ in range(3):  # best of three: a scheduler blip must not fail a build
+            started = time.perf_counter()
+            parts = split_sentences(text)
+            best = min(best, time.perf_counter() - started)
+            assert len(parts) == count
+        return best
+
+    small = elapsed(500)
+    large = elapsed(4_000)
+    assert large / max(small, 1e-6) < 24, "citation restoration has gone superlinear again"
+
+    # And the restoration is still correct at size, which is the reason the
+    # slow version existed at all.
+    assert split_sentences(" ".join([sentence] * 3)) == [sentence] * 3
 
 
 def test_page_numbers_survive_chunking():
