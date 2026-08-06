@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import date
 from random import Random
 
 import pytest
 
-from omnex.core import BudgetExceeded, ConfigurationError, FakeClock, IdFactory, Money, RateLimited
+from omnex.core import (
+    BudgetExceeded,
+    ConfigurationError,
+    FakeClock,
+    IdFactory,
+    Money,
+    RateLimited,
+    ValidationFailed,
+)
 from omnex.core.errors import PermanentError, TransientError
 from omnex.llm import (
     CallOptions,
@@ -30,7 +39,9 @@ from omnex.router import (
     JsonVerifier,
     Router,
     RoutingPolicy,
+    TokenShape,
     break_even_escalation_rate,
+    fanout_plan,
     recommended_bias,
 )
 from omnex.router.economics import RouterEconomics
@@ -669,3 +680,93 @@ def test_scripted_model_refuses_to_be_called_more_times_than_it_was_scripted():
     model.complete(_msg("a"), CallOptions())
     with pytest.raises(AssertionError, match="only 1 responses"):
         model.complete(_msg("b"), CallOptions())
+
+
+# ── Fan-out economics ─────────────────────────────────────────────────────
+
+
+CHEAP_IN, CHEAP_OUT = Money.from_usd("0.25"), Money.from_usd("1.25")
+DEAR_IN, DEAR_OUT = Money.from_usd("5"), Money.from_usd("25")
+PRICES = {
+    "cheap_in": CHEAP_IN,
+    "cheap_out": CHEAP_OUT,
+    "expensive_in": DEAR_IN,
+    "expensive_out": DEAR_OUT,
+}
+NARROW = {**PRICES, "cheap_in": Money.from_usd("3"), "cheap_out": Money.from_usd("15")}
+
+
+def _shape(divergent: bool, context: int = 20_000) -> TokenShape:
+    return TokenShape(
+        context=context,
+        research_output=800,
+        synthesis_output=1_500,
+        divergent=divergent,
+    )
+
+
+def test_research_fanout_is_cheaper_because_the_cheap_tier_does_the_reading():
+    """Legs reading DIFFERENT sources: the single call would have read them all."""
+    plan = fanout_plan(legs=6, shape=_shape(divergent=True), **PRICES)
+    assert plan.cheaper
+    assert plan.ratio < 0.25
+    assert "cheaper AND parallel" in plan.verdict
+
+
+def test_consensus_over_one_prompt_cannot_save_money_at_a_narrow_price_gap():
+    """The correction that matters.
+
+    The published argument for fan-out quotes the per-token price gap between
+    tiers. That gap is not the comparison: with every leg re-reading one shared
+    prompt, and the synthesiser billed at the expensive INPUT rate for every
+    leg's output, a 1.7x tier gap makes fan-out multiples dearer rather than
+    60% cheaper. It buys answer diversity, and it should be argued for on that.
+    """
+    plan = fanout_plan(legs=6, shape=_shape(divergent=False), **NARROW)
+
+    assert not plan.cheaper
+    assert plan.ratio > 3.0
+    assert "buys latency, not money" in plan.verdict
+
+    # Same legs, same prices, different material: now it is cheaper. The flag
+    # decides this, not the price gap.
+    assert fanout_plan(legs=6, shape=_shape(divergent=True), **NARROW).cheaper
+
+
+def test_duplicated_context_is_named_because_it_is_the_hidden_term():
+    """At long contexts the re-read prompt dominates, and nothing else says so."""
+    plan = fanout_plan(legs=10, shape=_shape(divergent=False, context=50_000), **PRICES)
+    assert plan.duplicated_context_share > 0.5
+    assert f"{plan.duplicated_context_share:.0%}" in plan.verdict
+
+
+def test_break_even_leg_count_is_the_number_that_decides_the_configuration():
+    """Below it fan-out is cheaper; above it you are paying for latency."""
+    shape = _shape(divergent=False)
+    limit = fanout_plan(legs=3, shape=shape, **PRICES).break_even_legs
+    assert limit >= 1
+    # At the line the two cost the same, so the parallelism is free.
+    assert fanout_plan(legs=limit, shape=shape, **PRICES).ratio <= 1.0
+    # One leg past it, every extra leg is bought with money.
+    assert not fanout_plan(legs=limit + 1, shape=shape, **PRICES).cheaper
+
+
+def test_a_wider_tier_gap_moves_break_even_up_rather_than_making_it_free():
+    shape = _shape(divergent=False)
+    assert (
+        fanout_plan(legs=3, shape=shape, **PRICES).break_even_legs
+        > fanout_plan(legs=3, shape=shape, **NARROW).break_even_legs
+    )
+
+
+def test_fanout_refuses_a_configuration_it_cannot_price():
+    with pytest.raises(ValidationFailed, match="at least one leg"):
+        fanout_plan(legs=0, shape=_shape(divergent=True), **PRICES)
+    with pytest.raises(ValidationFailed, match="cannot be negative"):
+        TokenShape(context=-1, research_output=1, synthesis_output=1)
+
+
+def test_every_price_is_keyword_only_so_input_and_output_cannot_be_swapped():
+    """Six numbers of the same type: a positional call site is a latent bug."""
+    signature = inspect.signature(fanout_plan)
+    assert all(p.kind is p.KEYWORD_ONLY for p in signature.parameters.values())

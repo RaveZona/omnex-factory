@@ -26,7 +26,7 @@ from omnex.core import FakeClock, Money
 from omnex.guard.injection import InjectionDetector
 from omnex.llm import CallOptions, CapabilityModel, Message, Task, Tier, spec_for
 from omnex.rag import Grounder
-from omnex.router import ComplexityClassifier, Router, RoutingPolicy
+from omnex.router import ComplexityClassifier, Router, RoutingPolicy, TokenShape, fanout_plan
 from omnex.vectors import Chunk
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -194,6 +194,64 @@ def injection_numbers() -> dict[str, object]:
     }
 
 
+def fanout_numbers() -> dict[str, object]:
+    """When N cheap researchers actually beat one expensive call, and when not.
+
+    Printed as two rows because the published version of this pattern quotes one
+    figure — the per-token price gap between tiers — for two architectures that
+    behave oppositely. Legs reading DIFFERENT sources are cheaper (the single
+    call would have read them all). Legs reading the SAME prompt cannot be, at a
+    narrow price gap: every leg re-reads it and the synthesiser pays the
+    expensive input rate for every leg's output.
+    """
+    prices = {
+        "cheap_in": Money.from_usd("3"),
+        "cheap_out": Money.from_usd("15"),
+        "expensive_in": Money.from_usd("5"),
+        "expensive_out": Money.from_usd("25"),
+    }
+    out: dict[str, object] = {}
+    for label, divergent in (
+        ("research (different sources)", True),
+        ("consensus (same prompt)", False),
+    ):
+        shape = TokenShape(
+            context=20_000, research_output=800, synthesis_output=1_500, divergent=divergent
+        )
+        plan = fanout_plan(legs=6, shape=shape, **prices)
+        out[label] = {
+            "ratio": plan.ratio,
+            "cheaper": plan.cheaper,
+            "break_even_legs": plan.break_even_legs,
+            "duplicated_context": plan.duplicated_context_share,
+        }
+    return out
+
+
+def claude_md_numbers() -> dict[str, object]:
+    """How much the repository's own knowledge-compression layer saves.
+
+    A CLAUDE.md is worth exactly the tokens a session would otherwise spend
+    rediscovering the tree, so the ratio is the claim and it is measured here
+    rather than asserted.
+    """
+    root = ROOT.parent
+    skip = {"node_modules", ".git", ".venv", "__pycache__"}
+    sources = [
+        p
+        for p in root.rglob("*")
+        if p.is_file() and p.suffix in {".py", ".ts", ".tsx"} and not (set(p.parts) & skip)
+    ]
+    source_bytes = sum(p.stat().st_size for p in sources)
+    compressed = (root / "CLAUDE.md").stat().st_size
+    return {
+        "files": len(sources),
+        "source_bytes": source_bytes,
+        "claude_md_bytes": compressed,
+        "ratio": source_bytes / compressed if compressed else 0.0,
+    }
+
+
 def finground_numbers() -> dict[str, object]:
     """Read the committed leaderboard rather than restating it.
 
@@ -238,6 +296,22 @@ def main() -> None:
     print("\ninjection-corpus  (tests/data/injection_corpus.json)")
     print(f"  detected            {injection['detected']}")
     print(f"  false positives     {injection['false_positives']}")
+
+    fan = fanout_numbers()
+    print("\ncost-router / fan-out  (scripts/skill_numbers.py)")
+    for label, row in fan.items():  # type: ignore[union-attr]
+        mark = "cheaper" if row["cheaper"] else "DEARER "
+        print(
+            f"  {label:<30}{row['ratio']:>7.0%} of one big call  {mark}  "
+            f"break-even {row['break_even_legs']} legs"
+        )
+
+    doc = claude_md_numbers()
+    print("\nCLAUDE.md  (knowledge compression)")
+    print(
+        f"  {doc['files']} source files, {doc['source_bytes']:,} bytes "
+        f"→ {doc['claude_md_bytes']:,} bytes = {doc['ratio']:,.0f}x"
+    )
 
     fin = finground_numbers()
     print(f"\nfinground  (suites/LEADERBOARD.md, fingerprint {fin['fingerprint']})")

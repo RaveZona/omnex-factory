@@ -5,7 +5,7 @@ behind it.
 
 | skill | what it carries |
 |---|---|
-| [`cost-router`](cost-router/SKILL.md) | routed spend **42.4%** of always-strong, at identical accuracy |
+| [`cost-router`](cost-router/SKILL.md) | routed spend **42.4%** of always-strong at identical accuracy; fan-out break-even priced |
 | [`grounded-answers`](grounded-answers/SKILL.md) | **25–30k sentences/sec**, flat with document size; refuses fabricated citations |
 | [`finground`](finground/SKILL.md) | **79.1%** vs **55.4%** — and 50% vs 100% hallucination |
 | [`injection-corpus`](injection-corpus/SKILL.md) | **30/30** attacks detected, **1/30** false positives |

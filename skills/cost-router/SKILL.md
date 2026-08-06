@@ -79,6 +79,45 @@ accuracy. Without it, routed accuracy is 90%, not 100%.
 
 So: a classifier alone is a downgrade. The verifier is not optional.
 
+## Fan-out: the saving that usually isn't
+
+The companion pattern — spawn N cheap researchers, hand their findings to one
+expensive synthesiser — is normally justified by the per-token price gap
+between tiers. **That is the wrong comparison**, and `fanout_plan()` prices the
+right one:
+
+```python
+from omnex.router import TokenShape, fanout_plan
+
+plan = fanout_plan(
+    legs=6,
+    shape=TokenShape(context=20_000, research_output=800,
+                     synthesis_output=1_500, divergent=True),
+    cheap_in=Money.from_usd("3"),  cheap_out=Money.from_usd("15"),
+    expensive_in=Money.from_usd("5"), expensive_out=Money.from_usd("25"),
+)
+plan.cheaper           # True
+plan.break_even_legs   # 6
+plan.verdict           # says which side of the line, and why
+```
+
+Two costs the price-gap argument drops: **every leg re-reads the prompt**, and
+**the synthesiser pays the expensive input rate for every leg's output**. So one
+flag decides the answer, and it inverts it:
+
+| legs read | 6 legs vs one big call | reading |
+|---|--:|---|
+| **different** sources | **77%** | cheaper — the cheap tier does the bulk reading and compresses |
+| the **same** prompt | **359%** | dearer — this buys answer diversity and latency, not money |
+
+Same prices, same leg count, opposite verdict. At a 1.7× tier gap, consensus
+fan-out over one shared prompt costs **three and a half times** the single call
+it replaces. That can still be the right call — latency and diversity are worth
+paying for — but it should be a decision, not a rounding error someone believed
+was a 60% saving.
+
+Reproduce both rows: `cd engine && .venv/bin/python scripts/skill_numbers.py`
+
 ## What this does not do
 
 It does not know whether the cheap answer is *right*, only whether it passes
