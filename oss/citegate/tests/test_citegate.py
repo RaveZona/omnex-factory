@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from citegate import Grounder, Source, Verdict, split_sentences
@@ -104,3 +106,40 @@ def test_the_documented_limitation_is_real():
 def test_nothing_supported_means_a_refusal_rather_than_a_plausible_paragraph():
     result = Grounder().check("The pool autoscales to four hundred. [p. 12]", POOL)
     assert result.refused and result.text == ""
+
+
+def test_splitting_a_long_document_stays_linear_in_its_citations():
+    """The regression guard for a quadratic no correctness test could see.
+
+    Citations are masked before splitting and restored afterwards. The original
+    restore walked the document's whole citation list once per sentence —
+    O(sentences x citations). Correct on every input, which is why 15 passing
+    tests never saw it, and invisible on a four-sentence answer, which is the
+    only shape bench.py measured. On a 4,000-sentence filing it was 1,439
+    sentences/sec where the fixed code does over 300,000.
+
+    Asserted as a growth ratio rather than a wall-clock bound, because an
+    absolute threshold on a shared CI runner measures the runner. Eight times
+    the input costs eight times the work when linear and sixty-four when
+    quadratic; the bound below sits clear of the first and nowhere near the
+    second.
+    """
+    sentence = "The connection pool defaults to twenty connections. [p. 12]"
+
+    def elapsed(count: int) -> float:
+        text = " ".join([sentence] * count)
+        best = float("inf")
+        for _ in range(3):  # best of three: a scheduler blip must not fail a build
+            started = time.perf_counter()
+            parts = split_sentences(text)
+            best = min(best, time.perf_counter() - started)
+            assert len(parts) == count
+        return best
+
+    small = elapsed(500)
+    large = elapsed(4_000)
+    assert large / max(small, 1e-6) < 24, "citation restoration has gone superlinear again"
+
+    # And restoration is still correct at size, which is why the slow version
+    # existed at all.
+    assert split_sentences(" ".join([sentence] * 3)) == [sentence] * 3

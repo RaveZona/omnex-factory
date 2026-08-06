@@ -110,6 +110,15 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
   must substitute only the placeholders a sentence contains — walking the whole
   citation list per sentence is O(n²) and cost 4.5s on a 4,000-sentence filing
   (fixed in `d8d3ca5`, guarded by a growth-ratio test).
+- **That splitter exists twice.** `engine/src/omnex/rag/ingest.py` and
+  `oss/citegate/src/citegate/grounding.py` are independent copies, on purpose —
+  citegate ships dependency-free. The quadratic was fixed in the engine and
+  survived in citegate for a further commit. Fix a splitter bug in both, or
+  check the other before claiming it is fixed.
+- **A benchmark whose shape cannot express a bug reports good numbers straight
+  through it.** `bench.py` measured 5,000 answers of four sentences each, where
+  the quadratic term is nothing, and published 46,279 sentences/sec while the
+  same code did 1,439/sec on one long document. It now measures both shapes.
 - A thin artifact (a 50-char PyPI summary) is not evidence of absence. The gap
   matrix excludes corpora under 200 chars and names them, because "nobody does
   model_routing" was nearly published about litellm, which *is* a router.
