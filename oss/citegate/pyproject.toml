@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "citegate"
+version = "0.1.0"
+description = "Verify that every sentence of a RAG answer is supported by the source it cites. Zero dependencies."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["rag", "hallucination", "grounding", "citations", "llm", "evaluation"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# None. That is the feature.
+#
+# Every grounding checker in the ecosystem pulls in either a judge model (a
+# network call and a bill per sentence) or a cross-encoder (torch, ~2 GB, a
+# model download). Both are more accurate than this and neither can run inside a
+# request handler on every response, which is where the check has to be if it is
+# going to stop anything reaching a user.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.8"]
+
+[project.urls]
+Homepage = "https://github.com/RaveZona/omnex-factory/tree/master/oss/citegate"
+Issues = "https://github.com/RaveZona/omnex-factory/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/citegate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
