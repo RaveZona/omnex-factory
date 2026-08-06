@@ -26,7 +26,7 @@ from omnex.core import FakeClock, Money
 from omnex.guard.injection import InjectionDetector
 from omnex.llm import CallOptions, CapabilityModel, Message, Task, Tier, spec_for
 from omnex.rag import Grounder
-from omnex.router import Router, RoutingPolicy
+from omnex.router import ComplexityClassifier, Router, RoutingPolicy
 from omnex.vectors import Chunk
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,6 +86,19 @@ def router_numbers() -> dict[str, object]:
     cheap_cost, cheap_correct = baseline(CHEAP)
     strong_cost, strong_correct = baseline(STRONG)
 
+    # Baseline 3: the classifier with no verifier behind it — the configuration
+    # people actually build first, and the one that quietly loses accuracy. The
+    # 20 hard-but-lookup-shaped tasks all route cheap and nothing catches them.
+    classifier = ComplexityClassifier()
+    cheap_tier_model = CapabilityModel(model_spec=CHEAP, tasks=tasks, reference=STRONG)
+    strong_tier_model = CapabilityModel(model_spec=STRONG, tasks=tasks, reference=STRONG)
+    classifier_correct = 0
+    for p in prompts:
+        chosen = (
+            cheap_tier_model if classifier.classify(p).tier <= CHEAP.tier else strong_tier_model
+        )
+        classifier_correct += chosen.complete(_msg(p), CallOptions()).text == tasks[p].answer
+
     router = Router(
         [
             CapabilityModel(model_spec=CHEAP, tasks=tasks, reference=STRONG),
@@ -111,6 +124,7 @@ def router_numbers() -> dict[str, object]:
         "escalation_rate": router.economics.escalation_rate,
         "break_even": router.economics.break_even(),
         "cheap_only_accuracy": cheap_correct / len(prompts),
+        "classifier_only_accuracy": classifier_correct / len(prompts),
         "strong_only_accuracy": strong_correct / len(prompts),
         "routed_accuracy": routed_correct / len(prompts),
         "escalated": escalated,
@@ -209,6 +223,7 @@ def main() -> None:
     print(f"  break-even rate     {router['break_even']:.1%}")  # type: ignore[str-format]
     print(
         f"  accuracy            cheap-only {router['cheap_only_accuracy']:.1%} · "
+        f"classifier-only {router['classifier_only_accuracy']:.1%} · "
         f"routed {router['routed_accuracy']:.1%} · strong-only {router['strong_only_accuracy']:.1%}"
     )
 
