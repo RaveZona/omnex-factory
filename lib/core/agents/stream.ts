@@ -163,10 +163,33 @@ export async function* runEvents(
  * turns "the user closed the tab" into "the run stopped" rather than "the run
  * continued invisibly and billed them for it".
  */
+export interface SettledOutcome {
+  reason: 'complete' | 'error' | 'aborted'
+  costEur: number
+  tokens: number
+  durationMs: number
+  error?: string
+}
+
 export function toSSE(
   trace: Trace,
   steps: RunStep[],
-  options: { signal?: AbortSignal; heartbeatMs?: number } = {},
+  options: {
+    signal?: AbortSignal
+    heartbeatMs?: number
+    /**
+     * Called exactly once, on every terminal path — success, failure and
+     * abort alike. This is where metering belongs: a run that spent money and
+     * then failed is precisely the one that must not vanish from the ledger,
+     * and a run the user cancelled still spent whatever it spent before
+     * stopping.
+     *
+     * Failures here are swallowed. Billing that throws must not also break the
+     * response the customer is reading; the alternative is a stream that dies
+     * at the last frame because an analytics insert timed out.
+     */
+    onSettled?: (outcome: SettledOutcome) => void | Promise<void>
+  } = {},
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
   const controller = new AbortController()
@@ -190,8 +213,22 @@ export function toSSE(
         }, beat)
       }
 
+      // Captured from the terminal event so `onSettled` reports what the
+      // client was actually told, rather than re-deriving it and risking a
+      // ledger that disagrees with the receipt on screen.
+      let settled: SettledOutcome | undefined
+
       try {
         for await (const event of runEvents(trace, steps, { signal: controller.signal })) {
+          if (event.type === 'done') {
+            settled = {
+              reason: event.reason,
+              costEur: event.costEur,
+              tokens: event.tokens,
+              durationMs: event.durationMs,
+              ...(event.error ? { error: event.error } : {}),
+            }
+          }
           stream.enqueue(encoder.encode(encodeEvent(event)))
         }
       } catch (error) {
@@ -211,8 +248,33 @@ export function toSSE(
             }),
           ),
         )
+        settled = {
+          reason: 'error',
+          costEur: totals.costEur,
+          tokens: totals.tokens,
+          durationMs: totals.durationMs,
+          error: message,
+        }
       } finally {
         if (timer) clearInterval(timer)
+        if (options.onSettled) {
+          // Awaited before closing so the ledger write is not racing the
+          // response ending, and swallowed so a billing failure cannot break
+          // the answer the customer is reading.
+          const totals = trace.totals()
+          try {
+            await options.onSettled(
+              settled ?? {
+                reason: 'aborted',
+                costEur: totals.costEur,
+                tokens: totals.tokens,
+                durationMs: totals.durationMs,
+              },
+            )
+          } catch {
+            // Metering must never break a customer request.
+          }
+        }
         stream.close()
       }
     },
