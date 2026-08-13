@@ -86,6 +86,10 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
 - `engine/suites/` — benchmark suites + `LEADERBOARD.md` (fingerprint `884533eb08028871`)
 - `engine/scripts/skill_numbers.py` — **the only source** of every number the
   skills publish. Re-measures rather than restates.
+- `engine/ontology/` — the 28-branch map onto `engine/`. `branches.json` holds
+  claims and contains **no figures**; `scripts/ontology_map.py` resolves every
+  symbol to decide status and renders `COVERAGE.md`. A claim for code that does
+  not import fails CI.
 - `skills/` — five packaged skills, each carrying its measured number
 - `intel/` — committed scan snapshots and reports
 - `oss/citegate/` — standalone, dependency-free citation checker
