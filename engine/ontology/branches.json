@@ -123,12 +123,16 @@
         "omnex.rag.Document",
         "omnex.rag.Page",
         "omnex.rag.GroundedAnswer",
-        "omnex.rag.SentenceCheck"
+        "omnex.rag.SentenceCheck",
+        "omnex.rag.extract_figures",
+        "omnex.rag.cluster_page",
+        "omnex.rag.Manifest",
+        "omnex.rag.Band"
       ],
-      "tests": ["tests/test_rag.py"],
+      "tests": ["tests/test_rag.py", "tests/test_figures.py"],
       "measured_by": "scripts/skill_numbers.py",
-      "missing": ["figure-level (bbox) anchoring — citations resolve to a page, never to a diagram"],
-      "note": "Page-anchored citations and grounding refusal are shipped and measured. A citation cannot currently point at a figure, which is what the proposed Layer A/B extraction would add.",
+      "missing": ["the pdfplumber/pypdfium2 reader behind the `figures` extra"],
+      "note": "Page-anchored citations and grounding refusal are shipped and measured. Figure-level anchoring now has its whole pure-Python half — clustering, bands, duplicate grouping, manifest — with 28 tests that need none of the extras. What is absent is the reader that feeds it, which is built against a real document rather than guessed at.",
       "worth_it": {
         "repeats_weekly": false,
         "verification_is_automated": true,

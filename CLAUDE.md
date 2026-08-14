@@ -32,7 +32,7 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
 |---|---|---|
 | `core` | Money (pico-dollars), Clock, errors, ids | — |
 | `router` | cheap→verify→escalate routing | routed spend **42.4%** of always-strong at equal accuracy |
-| `rag` | retrieval + page-anchored citations + grounding | **25–30k** sentences/sec, flat with document size |
+| `rag` | retrieval + page- and figure-anchored citations + grounding | **25–30k** sentences/sec, flat with document size |
 | `vectors` | hybrid dense/lexical store, RRF | — |
 | `guard` | injection fence, PII, rate limits, sandbox | **30/30** attacks, **1/30** false positives |
 | `evals` | golden cases, metrics, regression gate | gates on newly-failing cases, not the mean |

@@ -43,6 +43,13 @@ vectors = ["sqlite-vec>=0.1.6", "qdrant-client>=1.12", "numpy>=1.26"]
 # P1 RAG document ingest and reranking.
 rag = ["pypdf>=5.1", "sentence-transformers>=3.3"]
 
+# P1 figure-level anchoring. `pdfplumber` reads vector objects and coordinates
+# that `pypdf` does not expose, `pypdfium2` re-renders a region from the page
+# rather than lifting the stored object, and tesseract needs a system binary —
+# which is exactly why the whole of `rag/figures.py` above the adapter line runs
+# on the standard library and the suite never installs any of this.
+figures = ["pdfplumber>=0.11", "pypdfium2>=4.30", "pytesseract>=0.3.13", "imagehash>=4.3"]
+
 # P13 memory — cross-session sync.
 memory = ["redis>=5.2"]
 

@@ -60,9 +60,9 @@ NOT worth it — 3 condition(s) fail:
 
 ### VI · RAG / Knowledge Engineering (partial)
 
-Page-anchored citations and grounding refusal are shipped and measured. A citation cannot currently point at a figure, which is what the proposed Layer A/B extraction would add.
+Page-anchored citations and grounding refusal are shipped and measured. Figure-level anchoring now has its whole pure-Python half — clustering, bands, duplicate grouping, manifest — with 28 tests that need none of the extras. What is absent is the reader that feeds it, which is built against a real document rather than guessed at.
 
-- missing: figure-level (bbox) anchoring — citations resolve to a page, never to a diagram
+- missing: the pdfplumber/pypdfium2 reader behind the `figures` extra
 
 ```
 NOT worth it — 1 condition(s) fail:
