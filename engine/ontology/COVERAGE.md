@@ -5,38 +5,50 @@ re-derived by importing the module and resolving the symbol, so editing this
 file changes nothing and editing `ontology/branches.json` to claim more makes
 the script fail.
 
-**23 of 28 branches are backed by code that imports.** 17 implemented · 6 partial · 4 gap · 1 reference-only.
+**24 of 38 branches are backed by code that imports.** 17 implemented · 7 partial · 13 gap · 1 reference-only.
 
-| # | Branch | Claim | Backed by | Measured by |
-|---|---|---|---|---|
-| I | Foundational CS | knowledge | — | — |
-| II | Software Architecture and resilience patterns | partial | `omnex.core`, `omnex.deploy`, `omnex.pipeline` | — |
-| III | AI/ML Foundation | implemented | `omnex.finetune` | — |
-| IV | LLM Engineering | implemented | `omnex.llm` | — |
-| V | Context Engineering | implemented | `omnex.guard` | — |
-| VI | RAG / Knowledge Engineering | partial | `omnex.rag` | `scripts/skill_numbers.py` |
-| VII | Agentic AI | implemented | `omnex.harness` | — |
-| VIII | Multi-Agent | implemented | `omnex.crew` | — |
-| IX | Agent Memory | partial | `omnex.memory` | — |
-| X | Agent Orchestration | implemented | `omnex.graph` | — |
-| XI | Workflow Automation as an execution target | partial | `omnex.pipeline` | — |
-| XII | Agent Protocol Fabric | gap | — | — |
-| XIII | Data Engineering | implemented | `omnex.vectors`, `omnex.pipeline` | — |
-| XIV | Tool / Action Fabric | implemented | `omnex.guard` | — |
-| XV | Security | implemented | `omnex.guard` | `scripts/skill_numbers.py` |
-| XVI | Evaluation | implemented | `omnex.evals` | `suites/LEADERBOARD.md` |
-| XVII | Observability | implemented | `omnex.obs` | — |
-| XVIII | Reliability | implemented | `omnex.core`, `omnex.pipeline`, `omnex.deploy` | — |
-| XIX | Infrastructure | implemented | `omnex.deploy`, `omnex.serving`, `omnex.tenancy` | — |
-| XX | AI Development / coding agents | partial | `omnex.harness` | — |
-| XXI | Business Automation | gap | — | — |
-| XXII | Agentic Commerce | gap | — | — |
-| XXIII | Product Engine | gap | — | — |
-| XXIV | Revenue Engine | implemented | `omnex.intel` | — |
-| XXV | Opportunity Engine | implemented | `omnex.intel` | — |
-| XXVI | Agent Portfolio | implemented | `omnex.intel` | — |
-| XXVII | Autonomous Self-Improvement | implemented | `omnex.harness` | — |
-| XXVIII | Meta-layer | partial | `omnex.harness`, `omnex.intel` | — |
+**10 of them were discovered rather than assumed.** The rest came from a proposal written before anyone looked at a source, and a map of an assumed list can confirm every entry on it while missing the field entirely — which is why `source` is a column and not a footnote.
+
+| # | Branch | Claim | Backed by | Measured by | Source |
+|---|---|---|---|---|---|
+| I | Foundational CS | knowledge | — | — | proposal |
+| II | Software Architecture and resilience patterns | partial | `omnex.core`, `omnex.deploy`, `omnex.pipeline` | — | proposal |
+| III | AI/ML Foundation | implemented | `omnex.finetune` | — | proposal |
+| IV | LLM Engineering | implemented | `omnex.llm` | — | proposal |
+| V | Context Engineering | implemented | `omnex.guard` | — | proposal |
+| VI | RAG / Knowledge Engineering | partial | `omnex.rag` | `scripts/skill_numbers.py` | proposal |
+| VII | Agentic AI | implemented | `omnex.harness` | — | proposal |
+| VIII | Multi-Agent | implemented | `omnex.crew` | — | proposal |
+| IX | Agent Memory | partial | `omnex.memory` | — | proposal |
+| X | Agent Orchestration | implemented | `omnex.graph` | — | proposal |
+| XI | Workflow Automation as an execution target | partial | `omnex.pipeline` | — | proposal |
+| XII | Agent Protocol Fabric | gap | — | — | proposal |
+| XIII | Data Engineering | implemented | `omnex.vectors`, `omnex.pipeline` | — | proposal |
+| XIV | Tool / Action Fabric | implemented | `omnex.guard` | — | proposal |
+| XV | Security | implemented | `omnex.guard` | `scripts/skill_numbers.py` | proposal |
+| XVI | Evaluation | implemented | `omnex.evals` | `suites/LEADERBOARD.md` | proposal |
+| XVII | Observability | implemented | `omnex.obs` | — | proposal |
+| XVIII | Reliability | implemented | `omnex.core`, `omnex.pipeline`, `omnex.deploy` | — | proposal |
+| XIX | Infrastructure | implemented | `omnex.deploy`, `omnex.serving`, `omnex.tenancy` | — | proposal |
+| XX | AI Development / coding agents | partial | `omnex.harness` | — | proposal |
+| XXI | Business Automation | gap | — | — | proposal |
+| XXII | Agentic Commerce | gap | — | — | proposal |
+| XXIII | Product Engine | gap | — | — | proposal |
+| XXIV | Revenue Engine | implemented | `omnex.intel` | — | proposal |
+| XXV | Opportunity Engine | implemented | `omnex.intel` | — | proposal |
+| XXVI | Agent Portfolio | implemented | `omnex.intel` | — | proposal |
+| XXVII | Autonomous Self-Improvement | implemented | `omnex.harness` | — | proposal |
+| XXVIII | Meta-layer | partial | `omnex.harness`, `omnex.intel` | — | proposal |
+| XXIX | Constrained decoding and schema enforcement | gap | — | — | derived |
+| XXX | AST-aware code chunking | gap | — | — | derived |
+| XXXI | microVM execution isolation | partial | — | — | derived |
+| XXXII | Diff generation and AST-level patch verification | gap | — | — | derived |
+| XXXIII | Latency as a first-class budget | gap | — | — | derived |
+| XXXIV | LLM-as-Judge evaluation | gap | — | — | derived |
+| XXXV | Context positioning | gap | — | — | derived |
+| XXXVI | Speculative decoding | gap | — | — | derived |
+| XXXVII | Parallel tool execution | gap | — | — | derived |
+| XXXVIII | Teacher-model synthetic data generation | gap | — | — | derived |
 
 ## What is left, and whether a loop should own it
 
@@ -178,12 +190,124 @@ NOT worth it — 4 condition(s) fail:
   assessment: there is no standardised way to score a result, so two runs cannot be compared
 ```
 
+### XXIX · Constrained decoding and schema enforcement (gap)
+
+`JsonVerifier` checks a schema after the fact and escalates on failure, which pays for a wasted call. Constraining the decode so malformed output cannot be produced is absent. Named by chapter 2.2.
+
+- missing: logit bias and grammar-constrained generation
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXX · AST-aware code chunking (gap)
+
+`rag.chunk_document` splits prose. Splitting source code the same way cuts functions in half, and the retrieved half compiles into nothing. Zero uses of `ast.parse` in the package. Named by chapters 6.2 and 18.2.
+
+- missing: chunking that splits on syntax rather than on sentences
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXI · microVM execution isolation (partial)
+
+`guard.SandboxPolicy` sets rlimits on an in-process run — timeout, CPU, address space, file size, process count. That contains a runaway script, not a hostile one. The standard the corpus describes is a Firecracker microVM over VSOCK. Named by chapters 8.1 and 8.2.
+
+- missing: kernel-level isolation for untrusted code
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXII · Diff generation and AST-level patch verification (gap)
+
+The coding-agent chain can propose a change and cannot check that the change parses, applies, or touches only what it claimed. Named by chapter 11.
+
+- missing: structural verification that a produced patch is valid
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXIII · Latency as a first-class budget (gap)
+
+Every cost in this repo is exact pico-dollar `Money` and every gate can refuse on spend. There is no equivalent type for time, so a router that is cheaper and four seconds slower is invisible to the same machinery. This is the sharpest omission the corpus surfaced. Named by chapter 16.
+
+- missing: a Latency primitive symmetric with Money
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXIV · LLM-as-Judge evaluation (gap)
+
+`evals` scores against golden cases, which is exact and cannot grade open-ended output. A judge is the standard answer and carries its own failure mode — agreement with humans must itself be measured, or the judge becomes the thing being optimised. Named by chapter 14.
+
+- missing: a judge adapter with measured agreement against human labels
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXV · Context positioning (gap)
+
+Retrieval ranks by relevance and places results in rank order. Recall is not flat across a long context, so the most relevant chunk can land where the model attends least. Named by chapter 15.
+
+- missing: ordering retrieved context by measured positional recall
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXVI · Speculative decoding (gap)
+
+`serving` plans capacity and balances by prefix. It does not shorten a single response. Named by chapter 7.3.
+
+- missing: draft-and-verify decoding in the serving path
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXVII · Parallel tool execution (gap)
+
+Tool calls run in sequence. `harness.edges` already knows which steps are independent — the runtime does not act on it for tools. Named by chapter 4.2.
+
+- missing: fan-out over independent tool calls within one turn
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
+### XXXVIII · Teacher-model synthetic data generation (gap)
+
+`finetune.prepare` consumes examples somebody else produced. `evals.contamination_report` exists and is not wired to a generator. Named by chapter 17.
+
+- missing: generating training data from a stronger model, with contamination checks
+
+```
+NOT worth it — 1 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+```
+
 ## Reading of the whole map
 
-10 branches have work left. 1 of them passes all seven conditions for a loop to own.
+20 branches have work left. 1 of them passes all seven conditions for a loop to own.
 
 The condition that refuses most of them is `repeats`: a branch is built once,
 and a loop pointed at a one-off spends whether or not it ships. That is the
 finding, and it is about the machinery rather than about the branches — the
 same gate is what `harness` runs before any long-running loop starts.
+
+The second finding is the count itself. Version 1 reported ten branches with work left, against a list of twenty-eight nobody had checked against a source. Reading one corpus added 10 more. That number is a property of how hard anyone has looked, not a property of the field, and it should be expected to rise with the next source rather than converge.
 

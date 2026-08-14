@@ -1,7 +1,8 @@
 """The coverage map, held to the standard it claims to apply.
 
-`ontology/branches.json` says which of the twenty-eight branches are already
-backed by code. That claim decays silently: rename `omnex.memory.LongTermMemory`
+`ontology/branches.json` says which branches are already backed by code, and
+where each branch came from. That claim decays silently: rename
+`omnex.memory.LongTermMemory`
 and the map still reads "Agent Memory -> implemented", now describing a
 repository that no longer exists. Nobody re-reads a coverage document to check
 it, which is exactly why it needs a test rather than a review.
@@ -34,7 +35,7 @@ from ontology_map import (
 )
 
 BRANCHES = load()
-EXPECTED_BRANCH_COUNT = 28
+EXPECTED_BRANCH_COUNT = 38
 
 
 def test_the_ontology_has_every_branch_exactly_once() -> None:
@@ -136,7 +137,7 @@ def test_the_committed_map_matches_what_the_script_renders_now() -> None:
 
 def test_the_source_file_is_valid_json_with_a_version() -> None:
     raw = json.loads(SOURCE.read_text(encoding="utf-8"))
-    assert raw["ontology_version"] == "1"
+    assert raw["ontology_version"] == "2"
     assert len(raw["branches"]) == EXPECTED_BRANCH_COUNT
 
 
@@ -147,7 +148,7 @@ def test_a_branch_that_lies_about_its_code_is_caught() -> None:
     the claims are true OR that the resolver quietly returns None for everything.
     """
     liar = Branch(
-        id="XXIX",
+        id="FAKE-1",
         name="Fabricated",
         claim="implemented",
         modules=["omnex.memory"],
@@ -157,6 +158,7 @@ def test_a_branch_that_lies_about_its_code_is_caught() -> None:
         missing=[],
         note="claims a symbol that was never written",
         worth_it=None,
+        source="proposal",
     )
     result = audit(liar)
     assert not result.ok
@@ -165,7 +167,7 @@ def test_a_branch_that_lies_about_its_code_is_caught() -> None:
 
 def test_a_branch_that_hides_work_behind_implemented_is_caught() -> None:
     hider = Branch(
-        id="XXX",
+        id="FAKE-2",
         name="Fabricated",
         claim="implemented",
         modules=["omnex.memory"],
@@ -175,7 +177,52 @@ def test_a_branch_that_hides_work_behind_implemented_is_caught() -> None:
         missing=["the half that was never built"],
         note="claims completeness while naming what is absent",
         worth_it=None,
+        source="proposal",
     )
     result = audit(hider)
     assert not result.ok
     assert any("implemented" in entry for entry in result.violations)
+
+
+def test_a_branch_that_will_not_say_where_it_came_from_is_caught() -> None:
+    """`source` is load-bearing, so an unset one has to fail rather than default.
+
+    A branch with no provenance defaults, in a reader's head, to "somebody
+    checked" — which is the assumption version 2 exists to remove.
+    """
+    anonymous = Branch(
+        id="FAKE-3",
+        name="Fabricated",
+        claim="knowledge",
+        modules=[],
+        symbols=[],
+        tests=[],
+        measured_by=None,
+        missing=[],
+        note="does not say where it came from",
+        worth_it=None,
+        source="somebody said so",
+    )
+    result = audit(anonymous)
+    assert not result.ok
+    assert any("came from" in entry for entry in result.violations)
+
+
+def test_every_branch_says_where_it_came_from() -> None:
+    for branch in BRANCHES:
+        assert branch.source.startswith(("proposal", "corpus:")), branch.id
+
+
+def test_the_ontology_contains_branches_nobody_proposed() -> None:
+    """The point of version 2.
+
+    A map built only from a proposal can confirm or refute every entry on it and
+    cannot discover the entry nobody wrote down. If this ever drops to zero, the
+    ontology has stopped being read out of sources and gone back to being a list.
+    """
+    derived = [b for b in BRANCHES if b.derived]
+    assert derived, "no branch was discovered from a corpus"
+    assert all(b.source.startswith("corpus:") for b in derived)
+    # Discovered branches are gaps or partials by nature — code cannot already
+    # implement something nobody had named.
+    assert all(b.claim in ("gap", "partial") for b in derived)

@@ -1,4 +1,4 @@
-"""Verify the 28-branch ontology against the code that is supposed to back it.
+"""Verify the ontology against the code that is supposed to back it.
 
     python scripts/ontology_map.py
 
@@ -56,6 +56,13 @@ PRODUCERS = ("scripts/skill_numbers.py", "suites/LEADERBOARD.md")
 
 CLAIMS = ("implemented", "partial", "gap", "knowledge")
 
+#: Where a branch came from. `proposal` means somebody wrote it down before
+#: looking; `corpus:<name>` means it was read out of a source document. The
+#: distinction is the whole reason version 2 exists: a map of an assumed list
+#: can confirm every entry on it and still be missing the field, and "23 of 28
+#: covered" says nothing at all when the 28 were never evidence.
+SOURCE_PREFIXES = ("proposal", "corpus:")
+
 WORTH_IT_KEYS = (
     "repeats_weekly",
     "verification_is_automated",
@@ -81,10 +88,16 @@ class Branch:
     missing: list[str]
     note: str
     worth_it: dict[str, bool] | None
+    source: str
 
     @property
     def has_work_left(self) -> bool:
         return bool(self.missing)
+
+    @property
+    def derived(self) -> bool:
+        """Read out of a source document rather than assumed from a proposal."""
+        return self.source.startswith("corpus:")
 
 
 @dataclass
@@ -102,6 +115,17 @@ class Audit:
         return not (self.unresolved or self.absent_tests or self.violations)
 
 
+def version(path: Path = SOURCE) -> str:
+    """The ontology's own version, read rather than restated.
+
+    Printed by `main()`. A hardcoded literal here goes stale the first time the
+    file is revised, and a run that reports the wrong version is worse than one
+    that reports none.
+    """
+    raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return str(raw["ontology_version"])
+
+
 def load(path: Path = SOURCE) -> list[Branch]:
     """Read the claims. Reading them is not believing them."""
     raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
@@ -117,6 +141,7 @@ def load(path: Path = SOURCE) -> list[Branch]:
             missing=entry["missing"],
             note=entry["note"],
             worth_it=entry["worth_it"],
+            source=entry["source"],
         )
         for entry in raw["branches"]
     ]
@@ -223,6 +248,9 @@ def _rule_violations(branch: Branch, root: Path) -> list[str]:
     if not branch.note.strip():
         problems.append("has no note explaining its claim")
 
+    if not branch.source.startswith(SOURCE_PREFIXES):
+        problems.append(f"source {branch.source!r} does not say where the branch came from")
+
     return problems
 
 
@@ -231,6 +259,7 @@ def render(audits: list[Audit]) -> str:
     counts = {claim: sum(a.branch.claim == claim for a in audits) for claim in CLAIMS}
     total = len(audits)
     backed = sum(1 for a in audits if a.branch.claim in ("implemented", "partial"))
+    derived = [a for a in audits if a.branch.derived]
 
     lines = [
         "# Ontology coverage",
@@ -244,15 +273,23 @@ def render(audits: list[Audit]) -> str:
         f"{counts['implemented']} implemented · {counts['partial']} partial · "
         f"{counts['gap']} gap · {counts['knowledge']} reference-only.",
         "",
-        "| # | Branch | Claim | Backed by | Measured by |",
-        "|---|---|---|---|---|",
+        f"**{len(derived)} of them were discovered rather than assumed.** The rest came "
+        "from a proposal written before anyone looked at a source, and a map of an "
+        "assumed list can confirm every entry on it while missing the field entirely — "
+        "which is why `source` is a column and not a footnote.",
+        "",
+        "| # | Branch | Claim | Backed by | Measured by | Source |",
+        "|---|---|---|---|---|---|",
     ]
 
     for entry in audits:
         branch = entry.branch
         modules = ", ".join(f"`{m}`" for m in branch.modules) or "—"
         measured = f"`{branch.measured_by}`" if branch.measured_by else "—"
-        lines.append(f"| {branch.id} | {branch.name} | {branch.claim} | {modules} | {measured} |")
+        origin = "derived" if branch.derived else "proposal"
+        lines.append(
+            f"| {branch.id} | {branch.name} | {branch.claim} | {modules} | {measured} | {origin} |"
+        )
 
     lines += [
         "",
@@ -294,6 +331,12 @@ def render(audits: list[Audit]) -> str:
         "finding, and it is about the machinery rather than about the branches — the",
         "same gate is what `harness` runs before any long-running loop starts.",
         "",
+        f"The second finding is the count itself. Version 1 reported ten branches with "
+        f"work left, against a list of twenty-eight nobody had checked against a source. "
+        f"Reading one corpus added {len(derived)} more. That number is a property of how "
+        "hard anyone has looked, not a property of the field, and it should be expected "
+        "to rise with the next source rather than converge.",
+        "",
     ]
     return "\n".join(lines) + "\n"
 
@@ -322,7 +365,7 @@ def main() -> int:
     outstanding = [entry for entry in audits if entry.branch.has_work_left]
     approved = [e for e in outstanding if e.verdict is not None and e.verdict.worth_it]
 
-    print(f"ontology v1 — {len(audits)} branches, {resolved} symbols resolved")
+    print(f"ontology v{version()} — {len(audits)} branches, {resolved} symbols resolved")
     print(f"  backed by code       {backed}")
     print(f"  work left            {len(outstanding)}")
     print(f"  a loop should own    {len(approved)}")
