@@ -132,6 +132,25 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
   model_routing" was nearly published about litellm, which *is* a router.
 - The shell's cwd persists between calls and is often already `engine/`.
   `cd engine` then fails. Use absolute paths or check first.
-- GitHub, Hugging Face, arXiv and HN Algolia are **403 through the proxy**.
-  PyPI, npm, crates.io, GitLab and Docker Hub answer. Committed literals cover
-  the blocked ones; don't rebuild a scraper that cannot reach its source.
+- **The open web is not reachable — only an allowlist is.** Measured: PyPI, npm,
+  crates.io, GitLab and Docker Hub answer, and GitHub arrives through the git
+  lane (`add_repo`, then clone). Everything else — `example.com`,
+  `wikipedia.org`, `vercel.com`, `lovable.app`, `drive.google.com` — gets
+  `gateway answered 403 to CONNECT` and never opens a socket. The previous
+  version of this note named four blocked hosts and what answers, which reads as
+  "the rest is fine"; that omission cost a session, with three clients
+  (WebFetch, curl, Chromium through the proxy) each refused identically before
+  anyone thought to test `wikipedia.org` as a control. **Read
+  `curl -sS "$HTTPS_PROXY/__agentproxy/status"` → `recentRelayFailures` before
+  trying any host not on the list** — the proxy logs its own refusals, so one
+  read replaces a round of guessing. A 403 there is an org policy decision:
+  report it, never route around it. Content from a blocked host arrives by `@`
+  upload or through a GitHub repo, and the network policy itself is the user's
+  to widen at environment level.
+- **A polling loop on a quiet resource fails this repo's own `worth_it` gate.**
+  An hourly PR check-in ran ~30 times against a green, unchanged PR: `repeats`
+  holds, `budget` does not — it spent every hour and shipped nothing, and
+  `goal` does not, because no metric moved. Webhook subscription already wakes
+  the session on real PR events, so the poll was redundant with a mechanism that
+  costs nothing when nothing happens. Prefer the event; if a fallback is needed
+  at all, make it daily.
