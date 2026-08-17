@@ -94,6 +94,12 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
   document. A map of an assumed list can confirm every entry on it and still be
   missing the field — v1 said 10 gaps against 28 assumed branches, and reading
   one corpus added 10 more.
+- `corpus/universal-ai-os/` — 509 figures from *AI Engineering* (Pachaar &
+  Chawla), the committed source export beside them, and `RECONCILIATION.md`
+  joining corpus weight against `engine/` coverage. `scripts/ingest_atlas.py`
+  parses it and **asserts the export's own totals** — a regex matching 400 of
+  509 writes a smaller manifest and raises nothing. The n/10 scores in that
+  export are deliberately not imported: its author scored its own nodes.
 - `skills/` — five packaged skills, each carrying its measured number
 - `intel/` — committed scan snapshots and reports
 - `oss/citegate/` — standalone, dependency-free citation checker
