@@ -24,8 +24,8 @@ awaiting a check, not a measurement.
 ## Why the reconciliation is the point
 
 Neither document alone says anything useful about priority. The export knows
-where the *field's* attention is — 70 figures on the protocol fabric, 123 on ML
-foundation — and knows nothing about this repository. `ontology/branches.json`
+where the *field's* attention is — 184 of 509 figures touch the protocol fabric
+— and knows nothing about this repository. `ontology/branches.json`
 knows what `engine/` actually implements and nothing about how much of the
 literature each branch carries.
 
@@ -63,6 +63,8 @@ _BRANCH_RE = re.compile(
     re.M,
 )
 _FIGURE_RE = re.compile(r"^### (fig_\d+) — (.*?)$", re.M)
+_XREF_RE = re.compile(r"^- \*\*([IVXL]+)\. .+?\*\* — \d+ figures: (.*?)$", re.M)
+_FIG_ID_RE = re.compile(r"fig_\d+")
 _FIELD_RES = {
     "page": re.compile(r"\*\*Page:\*\* (\d+) \(PDF page (\d+)\)"),
     "chapter": re.compile(r"\*\*Chapter:\*\* (.+?)$", re.M),
@@ -90,6 +92,15 @@ class Branch:
     nodes: int
     figures: int
     node_names: list[str] = field(default_factory=list)
+    #: Every figure that maps to this branch at all, not only the ones for which
+    #: it is the primary. A figure has one primary and touches several branches,
+    #: so `figures` sums to 509 across the tree and `touched` does not — it is a
+    #: count of edges, not of figures, and reading it as the latter double-counts.
+    touched: list[str] = field(default_factory=list)
+
+    @property
+    def touch_count(self) -> int:
+        return len(self.touched)
 
 
 @dataclass
@@ -145,6 +156,15 @@ def parse(text: str) -> tuple[list[Branch], list[Figure]]:
             for row in block.splitlines()
             if row.startswith("| ") and not row.startswith("| ---") and "| Node |" not in row
         ]
+
+    # Section 7 lists, per branch, every figure that maps to it at all. The
+    # branch headers in section 4 count only the figures whose PRIMARY branch it
+    # is. Both are true and they answer different questions; using the narrower
+    # one alone understated the protocol fabric by a factor of two and a half.
+    by_id = {b.id: b for b in branches}
+    for bid, listing in _XREF_RE.findall(text):
+        if bid in by_id:
+            by_id[bid].touched = _FIG_ID_RE.findall(listing)
 
     figures: list[Figure] = []
     marks = list(_FIGURE_RE.finditer(text))
@@ -209,22 +229,29 @@ def reconcile(branches: list[Branch], figures: list[Figure]) -> str:
         "The n/10 completeness scores in the export are deliberately ignored. The "
         "system that wrote each node also scored it.",
         "",
-        "| # | Branch | Figures | Nodes | engine/ claim | Symbols |",
-        "|---|---|--:|--:|---|--:|",
+        "Two counts per branch, because the export carries two and they answer "
+        "different questions. **Primary** is the figures for which this branch is "
+        "the main subject; it sums to 509. **Touches** is every figure that maps "
+        "to the branch at all — a figure has one primary and several mappings, so "
+        "this counts edges and sums to far more. Ranking on primary alone "
+        "understated the protocol fabric by a factor of two and a half.",
+        "",
+        "| # | Branch | Primary | Touches | Nodes | engine/ claim | Symbols |",
+        "|---|---|--:|--:|--:|---|--:|",
     ]
 
-    ordered = sorted(branches, key=lambda b: -b.figures)
+    ordered = sorted(branches, key=lambda b: -b.touch_count)
     for branch in ordered:
         claim = claims.get(branch.id)
         verdict = claim["claim"] if claim else "—"
         symbols = len(claim["symbols"]) if claim else 0
         lines.append(
-            f"| {branch.id} | {branch.name} | {branch.figures} | {branch.nodes} | "
-            f"{verdict} | {symbols} |"
+            f"| {branch.id} | {branch.name} | {branch.figures} | {branch.touch_count} | "
+            f"{branch.nodes} | {verdict} | {symbols} |"
         )
 
     heavy_and_absent = [
-        b for b in ordered if b.figures >= 30 and claims.get(b.id, {}).get("claim") == "gap"
+        b for b in ordered if b.touch_count >= 30 and claims.get(b.id, {}).get("claim") == "gap"
     ]
     lines += [
         "",
@@ -234,10 +261,11 @@ def reconcile(branches: list[Branch], figures: list[Figure]) -> str:
     if heavy_and_absent:
         for branch in heavy_and_absent:
             lines.append(
-                f"- **{branch.id} {branch.name}** carries {branch.figures} figures — "
-                f"{branch.figures / len(figures):.0%} of the corpus — and `engine/` "
-                "has no code for it at all. This is the largest hole by evidence "
-                "rather than by opinion."
+                f"- **{branch.id} {branch.name}** is touched by {branch.touch_count} "
+                f"of {len(figures)} figures — {branch.touch_count / len(figures):.0%} "
+                f"of the corpus, and primary for {branch.figures} of them — while "
+                "`engine/` has no code for it at all. This is the largest hole by "
+                "evidence rather than by opinion."
             )
     else:
         lines.append("- No branch is both corpus-heavy and entirely absent from `engine/`.")
@@ -283,7 +311,7 @@ def main() -> int:
             {
                 "source": "AI Engineering: System Design Patterns for LLMs, RAG and Agents",
                 "export": "corpus/universal-ai-os/export.md",
-                "branches": [asdict(b) for b in branches],
+                "branches": [asdict(b) | {"touch_count": b.touch_count} for b in branches],
                 "figures": [asdict(f) | {"band": f.band} for f in figures],
             },
             indent=2,

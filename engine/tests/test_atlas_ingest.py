@@ -57,6 +57,33 @@ def test_the_branch_headers_account_for_every_figure() -> None:
     assert sum(b.figures for b in branches) == len(figures)
 
 
+def test_primary_and_touch_counts_are_kept_apart() -> None:
+    """Two counts, and conflating them is a real mistake already made once.
+
+    A figure has ONE primary branch and maps to SEVERAL. Primary counts sum to
+    509 because every figure has exactly one; touch counts sum to far more
+    because they count edges. Ranked on primary alone, the protocol fabric shows
+    70 figures; ranked on touches it shows 184 — the same branch, a factor of
+    two and a half apart, and the second is the one that says how much of the
+    corpus depends on it.
+    """
+    branches, figures = _parsed()
+    assert sum(b.figures for b in branches) == len(figures)
+    assert sum(b.touch_count for b in branches) > len(figures)
+
+    fabric = next(b for b in branches if b.id == "XII")
+    assert fabric.touch_count > fabric.figures, "section 7 was not parsed"
+
+
+def test_every_touched_figure_id_exists() -> None:
+    """A cross-reference to a record that is not in the manifest is a dangling edge."""
+    branches, figures = _parsed()
+    known = {f.id for f in figures}
+    for branch in branches:
+        unknown = [fid for fid in branch.touched if fid not in known]
+        assert not unknown, f"{branch.id} references figures that do not exist: {unknown[:3]}"
+
+
 def test_bands_agree_with_the_engine_implementation() -> None:
     _, figures = _parsed()
     for figure in figures:

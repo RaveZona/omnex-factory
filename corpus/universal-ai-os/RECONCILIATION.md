@@ -8,40 +8,42 @@ Bands recomputed from each figure's confidence rather than read from the export:
 
 The n/10 completeness scores in the export are deliberately ignored. The system that wrote each node also scored it.
 
-| # | Branch | Figures | Nodes | engine/ claim | Symbols |
-|---|---|--:|--:|---|--:|
-| III | AI / ML Foundation | 123 | 27 | implemented | 4 |
-| VII | Agentic AI | 91 | 20 | implemented | 6 |
-| XII | Agent Protocol Fabric | 70 | 17 | gap | 0 |
-| VI | RAG / Knowledge Engineering | 58 | 24 | partial | 10 |
-| XVI | Evaluation | 39 | 30 | implemented | 6 |
-| XIX | Infrastructure | 37 | 19 | implemented | 6 |
-| IV | LLM Engineering | 32 | 17 | implemented | 6 |
-| V | Context Engineering | 20 | 16 | implemented | 4 |
-| XIV | Tool / Action Fabric | 15 | 27 | implemented | 3 |
-| XVII | Observability | 14 | 21 | implemented | 6 |
-| IX | Agent Memory | 4 | 15 | partial | 5 |
-| XIII | Data Engineering | 4 | 23 | implemented | 5 |
-| VIII | Multi-Agent | 1 | 16 | implemented | 5 |
-| XXI | Business Automation | 1 | 13 | gap | 0 |
-| I | Foundational Computer Science | 0 | 16 | knowledge | 0 |
-| II | Software Architecture | 0 | 32 | partial | 7 |
-| X | Agent Orchestration | 0 | 8 | implemented | 6 |
-| XI | n8n / Workflow Automation | 0 | 24 | partial | 5 |
-| XV | Security | 0 | 22 | implemented | 5 |
-| XVIII | Reliability | 0 | 16 | implemented | 5 |
-| XX | AI Development / Coding | 0 | 13 | partial | 5 |
-| XXII | Agentic Commerce | 0 | 10 | gap | 0 |
-| XXIII | Product Engine | 0 | 9 | gap | 0 |
-| XXIV | Revenue Engine | 0 | 20 | implemented | 4 |
-| XXV | Opportunity Engine | 0 | 10 | implemented | 6 |
-| XXVI | Agent Portfolio | 0 | 16 | implemented | 4 |
-| XXVII | Autonomous Self-Improvement | 0 | 16 | implemented | 5 |
-| XXVIII | Meta-Layer | 0 | 10 | partial | 5 |
+Two counts per branch, because the export carries two and they answer different questions. **Primary** is the figures for which this branch is the main subject; it sums to 509. **Touches** is every figure that maps to the branch at all — a figure has one primary and several mappings, so this counts edges and sums to far more. Ranking on primary alone understated the protocol fabric by a factor of two and a half.
+
+| # | Branch | Primary | Touches | Nodes | engine/ claim | Symbols |
+|---|---|--:|--:|--:|---|--:|
+| III | AI / ML Foundation | 123 | 189 | 27 | implemented | 4 |
+| XII | Agent Protocol Fabric | 70 | 184 | 17 | gap | 0 |
+| VII | Agentic AI | 91 | 172 | 20 | implemented | 6 |
+| VI | RAG / Knowledge Engineering | 58 | 151 | 24 | partial | 10 |
+| XIX | Infrastructure | 37 | 134 | 19 | implemented | 6 |
+| IV | LLM Engineering | 32 | 125 | 17 | implemented | 6 |
+| XIV | Tool / Action Fabric | 15 | 110 | 27 | implemented | 3 |
+| XVI | Evaluation | 39 | 98 | 30 | implemented | 6 |
+| V | Context Engineering | 20 | 84 | 16 | implemented | 4 |
+| XVII | Observability | 14 | 59 | 21 | implemented | 6 |
+| XIII | Data Engineering | 4 | 52 | 23 | implemented | 5 |
+| IX | Agent Memory | 4 | 39 | 15 | partial | 5 |
+| VIII | Multi-Agent | 1 | 28 | 16 | implemented | 5 |
+| XXI | Business Automation | 1 | 21 | 13 | gap | 0 |
+| X | Agent Orchestration | 0 | 17 | 8 | implemented | 6 |
+| XI | n8n / Workflow Automation | 0 | 15 | 24 | partial | 5 |
+| XV | Security | 0 | 15 | 22 | implemented | 5 |
+| II | Software Architecture | 0 | 10 | 32 | partial | 7 |
+| XVIII | Reliability | 0 | 5 | 16 | implemented | 5 |
+| I | Foundational Computer Science | 0 | 0 | 16 | knowledge | 0 |
+| XX | AI Development / Coding | 0 | 0 | 13 | partial | 5 |
+| XXII | Agentic Commerce | 0 | 0 | 10 | gap | 0 |
+| XXIII | Product Engine | 0 | 0 | 9 | gap | 0 |
+| XXIV | Revenue Engine | 0 | 0 | 20 | implemented | 4 |
+| XXV | Opportunity Engine | 0 | 0 | 10 | implemented | 6 |
+| XXVI | Agent Portfolio | 0 | 0 | 16 | implemented | 4 |
+| XXVII | Autonomous Self-Improvement | 0 | 0 | 16 | implemented | 5 |
+| XXVIII | Meta-Layer | 0 | 0 | 10 | partial | 5 |
 
 ## What the join says that neither side could
 
-- **XII Agent Protocol Fabric** carries 70 figures — 14% of the corpus — and `engine/` has no code for it at all. This is the largest hole by evidence rather than by opinion.
+- **XII Agent Protocol Fabric** is touched by 184 of 509 figures — 36% of the corpus, and primary for 70 of them — while `engine/` has no code for it at all. This is the largest hole by evidence rather than by opinion.
 
 Branches with **zero** figures are not thereby unimportant. The corpus is one book with one author's emphasis: it says nothing about business automation, revenue or self-improvement, and a reader who treated zero as a verdict would delete the half of this platform that earns money.
 
