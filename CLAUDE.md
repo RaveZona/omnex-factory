@@ -24,7 +24,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
+Current state: **702 engine tests · 68 TypeScript · 15 citegate**, all green.
 
 ## engine/src/omnex/ — what each module is for
 
@@ -100,6 +100,16 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
   verifies resolution; it may never decide two names mean the same
   capability. Currently 449 gap · 58 proposed · 0 implemented — and zero is
   correct, not pessimistic.
+- `corpus/universal-ai-os/BUILD_ORDER.md` — the join, from
+  `scripts/build_order.py`: every node with no code, ranked by how many figures
+  name it. **Only direct lexical edges sort it.** Chapter-affinity edges
+  outnumber them 736 to 550, so ranking on the total ranks on chapter size —
+  ReAct (6 direct, 63 chapter) would beat Vector Search (22, 21). And `gap`
+  means *no alias was proposed*, never *the capability is absent*: `Vector
+  Search` is a gap while `omnex.vectors.HybridStore` is in the package, so a
+  node whose branch already exports symbols gets `alias?` (go read that code
+  first), and only a branch exporting nothing gets `build`. Head of the queue,
+  derived rather than chosen: **MCP, 62 figures, branch XII exports nothing.**
 - `corpus/universal-ai-os/` — 509 figures from *AI Engineering* (Pachaar &
   Chawla), the committed source export beside them, and `RECONCILIATION.md`
   joining corpus weight against `engine/` coverage. `scripts/ingest_atlas.py`
