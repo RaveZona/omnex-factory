@@ -114,10 +114,25 @@ def _split_node(name: str) -> set[str]:
 def propose(node_name: str, symbols: dict[str, str]) -> str | None:
     """Suggest a dotted symbol for a node name, or nothing.
 
-    Deliberately conservative: an exact token-set match, or one set wholly
-    contained in the other. A looser rule produces a longer list of proposals
-    that a reviewer then has to disprove one by one, which is how a review queue
-    becomes a rubber stamp.
+    An exact token-set match, or the node's tokens contained in the symbol's.
+    **Containment runs one way only**, and that direction is the rule that
+    matters.
+
+    A symbol MORE specific than the node can plausibly be its implementation:
+    "MCP" is `McpClient`, "Quantization" is `QuantizationProfile`. A symbol LESS
+    specific cannot be. `omnex.factory.Tool` is not "Tool Registry", and it is
+    also not Tool Discovery, Tool Selection, Tool Permissions, Tool Invocation,
+    Tool Sandbox, Tool Timeout, Tool Retry, Tool Audit or nine others — which is
+    exactly what the earlier bidirectional rule proposed, all to the same symbol,
+    in one run. Thirty-five of sixty proposals came from that direction and
+    almost all were noise.
+
+    A reviewer who has to disprove sixty proposals one by one stops reviewing,
+    and `proposed` then means nothing. Two good proposals are lost with the
+    thirty-five — `Dead Letter Queue -> omnex.pipeline.DeadLetter` is the clear
+    one — and a human can commit those by hand. That asymmetry is deliberate: a
+    missing proposal costs one manual entry, a queue full of noise costs the
+    whole mechanism.
     """
     wanted = _split_node(node_name)
     if not wanted:
@@ -129,7 +144,7 @@ def propose(node_name: str, symbols: dict[str, str]) -> str | None:
             continue
         if wanted == have:
             score = 1.0
-        elif wanted <= have or have <= wanted:
+        elif wanted < have:
             score = 0.8
         else:
             continue
@@ -325,6 +340,31 @@ def refresh(nodes: list[Node], symbols: dict[str, str]) -> list[str]:
     return moved
 
 
+def prune(nodes: list[Node]) -> list[str]:
+    """Withdraw proposals the current rule would no longer make.
+
+    The mirror of `refresh()`, and legitimate for the same reason: the machine is
+    un-proposing what the machine proposed, under a rule it no longer holds. It
+    never touches a verified node — an alias a human accepted or rejected is
+    their decision, and a matcher that changed its mind does not outrank it.
+
+    Without this, tightening a rule leaves the queue full of proposals the code
+    now agrees are wrong, and the file stops describing what the script would
+    produce.
+    """
+    withdrawn: list[str] = []
+    for node in nodes:
+        if node.claim != "proposed" or node.verified or not node.alias:
+            continue
+        module, _, symbol = node.alias.rpartition(".")
+        if propose(node.name, {symbol: module}) is not None:
+            continue
+        withdrawn.append(f"{node.branch}/{node.name} was {node.alias}")
+        node.claim = "gap"
+        node.alias = None
+    return withdrawn
+
+
 def save(nodes: list[Node]) -> None:
     NODES.write_text(
         json.dumps(
@@ -353,9 +393,18 @@ def save(nodes: list[Node]) -> None:
 def main() -> int:
     if NODES.exists():
         nodes = load()
+        withdrawn = prune(nodes)
         moved = refresh(nodes, public_symbols())
-        if moved:
+        if withdrawn or moved:
             save(nodes)
+        if withdrawn:
+            print(f"{len(withdrawn)} proposal(s) withdrawn — the rule no longer makes them:")
+            for line in withdrawn[:10]:
+                print(f"  {line}")
+            if len(withdrawn) > 10:
+                print(f"  ... and {len(withdrawn) - 10} more")
+            print()
+        if moved:
             print(f"{len(moved)} gap node(s) now have a proposal:")
             for line in moved:
                 print(f"  {line}")

@@ -37,12 +37,12 @@ a time, is how somebody concludes the check is the obstacle.
 
 from __future__ import annotations
 
-import importlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from omnex.core.symbols import resolve
 from omnex.harness.worth_it import Verdict, evaluate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -145,25 +145,6 @@ def load(path: Path = SOURCE) -> list[Branch]:
         )
         for entry in raw["branches"]
     ]
-
-
-def resolve(symbol: str) -> str | None:
-    """Import a dotted symbol. Returns the reason it failed, or None on success.
-
-    The module half is derived from the symbol rather than taken from the
-    branch's `modules` list, so a branch can cite `omnex.core.Money` from a
-    revenue row without having to claim the whole of `omnex.core`.
-    """
-    module_path, _, attribute = symbol.rpartition(".")
-    if not module_path or not attribute:
-        return "not a dotted path"
-    try:
-        module = importlib.import_module(module_path)
-    except ImportError as exc:
-        return f"module will not import ({exc})"
-    if not hasattr(module, attribute):
-        return f"{module_path} has no attribute {attribute!r}"
-    return None
 
 
 def audit(branch: Branch, root: Path = ROOT) -> Audit:

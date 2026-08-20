@@ -25,6 +25,7 @@ from .ids import IdFactory, new_id, parse_prefix
 from .money import PICOS_PER_USD, Money, TokenPrice
 from .retry import Attempt, RetryPolicy, retry_call, retry_call_async
 from .settings import Settings, clean_env, env_bool, env_float, env_int, env_str
+from .symbols import resolve, resolves
 
 __all__ = [
     "PICOS_PER_USD",
@@ -57,6 +58,8 @@ __all__ = [
     "env_str",
     "new_id",
     "parse_prefix",
+    "resolve",
+    "resolves",
     "retry_call",
     "retry_call_async",
 ]

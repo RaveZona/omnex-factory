@@ -30,7 +30,7 @@ the script fail.
 | XVII | Observability | implemented | `omnex.obs` | — | proposal |
 | XVIII | Reliability | implemented | `omnex.core`, `omnex.pipeline`, `omnex.deploy` | — | proposal |
 | XIX | Infrastructure | implemented | `omnex.deploy`, `omnex.serving`, `omnex.tenancy` | — | proposal |
-| XX | AI Development / coding agents | partial | `omnex.harness` | — | proposal |
+| XX | AI Development / coding agents | partial | `omnex.harness`, `omnex.factory` | — | proposal |
 | XXI | Business Automation | gap | — | — | proposal |
 | XXII | Agentic Commerce | gap | — | — | proposal |
 | XXIII | Product Engine | gap | — | — | proposal |
@@ -122,9 +122,9 @@ NOT worth it — 3 condition(s) fail:
 
 ### XX · AI Development / coding agents (partial)
 
-The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths. They are not wired into one pipeline.
+The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory now makes the gate order a TYPE rather than a diagram: idea, market, unit economics, architecture, simulation, evaluation, security, deploy, observe, scale-or-kill, with Pipeline.advance() refusing anything out of order and worth_it at the head. A spec is fingerprinted and bound to a harness.Contract, so one rescoped after approval fails the next gate. What is still missing is the other half: nothing yet COMPILES a spec into something that runs.
 
-- missing: the spec→plan→code→test→review→security→deploy→monitor chain wired end to end
+- missing: compilers that emit a spec to a runnable target — code, MCP topology, n8n blueprint
 
 ```
 worth it: all seven conditions hold

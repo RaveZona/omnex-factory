@@ -24,7 +24,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **793 engine tests · 68 TypeScript · 16 citegate**, all green.
 
 ## engine/src/omnex/ — what each module is for
 
@@ -40,6 +40,7 @@ Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
 | `hitl` | human approval bound to a fingerprint | — |
 | `harness` | long-running loop: worth-it gate, contract, evaluator, edges, isolation, state, outer loop | outer loop watches **cost per accepted change** |
 | `mcp` | JSON-RPC 2.0 tool protocol over a `Transport` Protocol | built because **62 of 509 figures** named it — the top of `BUILD_ORDER.md` |
+| `factory` | capabilities → a fingerprinted `AgentSpec`; the gate order as a **type** | `worth_it` at the head of ten stages |
 | `intel` | opportunity scanning over public sources | — |
 | `memory` `obs` `graph` `llm` `serving` `finetune` `deploy` `tenancy` `pipeline` | agent memory · OTel+Prometheus · graph runtime · provider adapters · inference · LoRA/DPO · packaging · multi-tenancy · queues+webhooks | — |
 
@@ -103,8 +104,14 @@ Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
   because the first `refresh()` after `omnex.mcp` landed proposed `Code →
   omnex.mcp.ErrorCode`, which is wrong — and with nowhere to record that, the
   same wrong proposal returns on every run and the queue can only grow.
-  `refresh()` may propose for a gap; it may never reopen anything verified.
-  Currently 447 gap · 60 proposed · 0 rejected · 0 implemented.
+  `refresh()` may propose for a gap; `prune()` withdraws proposals the current
+  rule would no longer make; neither may touch anything a human verified.
+  **Containment runs one way**: a symbol more specific than the node can be its
+  implementation (`MCP` → `McpClient`), one broader cannot — `omnex.factory.Tool`
+  was proposed for fourteen different "Tool X" nodes at once before that rule
+  landed. Pruning that noise raised the gap count from 447 to 464, which is the
+  honest direction. Currently **464 gap · 43 proposed · 0 rejected · 0
+  implemented**.
 - `corpus/universal-ai-os/BUILD_ORDER.md` — the join, from
   `scripts/build_order.py`: every node with no code, ranked by how many figures
   name it. **Only direct lexical edges sort it.** Chapter-affinity edges
@@ -125,6 +132,19 @@ Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
   parses it and **asserts the export's own totals** — a regex matching 400 of
   509 writes a smaller manifest and raises nothing. The n/10 scores in that
   export are deliberately not imported: its author scored its own nodes.
+- `engine/src/omnex/factory/` — a set of capabilities compiled into an
+  `AgentSpec`: role, capabilities bound to symbols that must import, priced
+  tools, memory and context policy, paradigm, eval suite, governance, failure
+  modes, cost model. The spec is fingerprinted and derives a `harness.Contract`,
+  so one rescoped after approval fails the next gate. `Stage` makes the gate
+  order a type — `idea → market → unit economics → architecture → simulation →
+  evaluation → security → deploy → observe → scale/kill` — and
+  `Pipeline.advance()` refuses anything out of order. Only three gates can be
+  decided from the spec (idea, unit economics, architecture); the rest take
+  evidence a person supplies, because a spec must not grade its own market.
+  **`Stage` is the `StrEnum` trap in the flesh**: inherited string comparison
+  makes `Stage.DEPLOY < Stage.IDEA` true, and `@total_ordering` fills in nothing
+  because all four operators are already inherited. They are written out.
 - `skills/` — five packaged skills, each carrying its measured number
 - `intel/` — committed scan snapshots and reports
 - `oss/citegate/` — standalone, dependency-free citation checker
@@ -143,6 +163,9 @@ Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
 ## Lab notes — mistakes already paid for, do not repeat
 
 - `ruff check` passing does not mean `ruff format --check` passes. Run both.
+- **Symbol resolution lives in `omnex.core.symbols`, imported by everything.**
+  `ontology_map.py`, `node_map.py` and `omnex.factory` all ask "does this name
+  exist"; the splitter lesson below is what a second copy costs.
 - A citation like `[url · 2026-08-05]` parses as the asserted figure "2026"
   unless citations are stripped *before* number extraction.
 - Masking citations before sentence-splitting is required, **and** the restore

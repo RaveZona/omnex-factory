@@ -531,23 +531,28 @@
       "name": "AI Development / coding agents",
       "claim": "partial",
       "modules": [
-        "omnex.harness"
+        "omnex.harness",
+        "omnex.factory"
       ],
       "symbols": [
         "omnex.harness.Plan",
         "omnex.harness.Proposal",
         "omnex.harness.Rubric",
         "omnex.harness.Workspace",
-        "omnex.harness.Fleet"
+        "omnex.harness.Fleet",
+        "omnex.factory.AgentSpec",
+        "omnex.factory.Stage",
+        "omnex.factory.Pipeline"
       ],
       "tests": [
-        "tests/test_harness.py"
+        "tests/test_harness.py",
+        "tests/test_factory.py"
       ],
       "measured_by": null,
       "missing": [
-        "the spec→plan→code→test→review→security→deploy→monitor chain wired end to end"
+        "compilers that emit a spec to a runnable target — code, MCP topology, n8n blueprint"
       ],
-      "note": "The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths. They are not wired into one pipeline.",
+      "note": "The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory now makes the gate order a TYPE rather than a diagram: idea, market, unit economics, architecture, simulation, evaluation, security, deploy, observe, scale-or-kill, with Pipeline.advance() refusing anything out of order and worth_it at the head. A spec is fingerprinted and bound to a harness.Contract, so one rescoped after approval fails the next gate. What is still missing is the other half: nothing yet COMPILES a spec into something that runs.",
       "worth_it": {
         "repeats_weekly": true,
         "verification_is_automated": true,

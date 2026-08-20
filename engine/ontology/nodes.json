@@ -809,17 +809,17 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.State",
+      "alias": null,
       "branch": "V",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Session State",
       "note": "",
       "verified": false
     },
     {
-      "alias": "omnex.graph.State",
+      "alias": null,
       "branch": "V",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Agent State",
       "note": "",
       "verified": false
@@ -1001,9 +1001,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.rag.Document",
+      "alias": null,
       "branch": "VI",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Document Intelligence",
       "note": "",
       "verified": false
@@ -1409,9 +1409,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.Graph",
+      "alias": null,
       "branch": "IX",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Graph Memory",
       "note": "",
       "verified": false
@@ -1465,17 +1465,17 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.Graph",
+      "alias": null,
       "branch": "X",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Graph Orchestration",
       "note": "",
       "verified": false
     },
     {
-      "alias": "omnex.crew.Role",
+      "alias": null,
       "branch": "X",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Role Orchestration",
       "note": "",
       "verified": false
@@ -1881,9 +1881,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.Graph",
+      "alias": null,
       "branch": "XIII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Graph Database",
       "note": "",
       "verified": false
@@ -1945,9 +1945,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.intel.Feature",
+      "alias": null,
       "branch": "XIII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Feature Store",
       "note": "",
       "verified": false
@@ -2129,17 +2129,17 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.Budget",
+      "alias": null,
       "branch": "XIV",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Tool Budget",
       "note": "",
       "verified": false
     },
     {
-      "alias": "omnex.guard.RateLimit",
+      "alias": null,
       "branch": "XIV",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Tool Rate Limit",
       "note": "",
       "verified": false
@@ -2489,9 +2489,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.llm.Task",
+      "alias": null,
       "branch": "XVI",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Task Success",
       "note": "",
       "verified": false
@@ -2697,9 +2697,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.llm.Usage",
+      "alias": null,
       "branch": "XVII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Token Usage",
       "note": "",
       "verified": false
@@ -2785,9 +2785,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.obs.Trace",
+      "alias": null,
       "branch": "XVII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Trace ID",
       "note": "",
       "verified": false
@@ -2881,9 +2881,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.pipeline.DeadLetter",
+      "alias": null,
       "branch": "XVIII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Dead Letter Queue",
       "note": "",
       "verified": false
@@ -3953,9 +3953,9 @@
       "verified": false
     },
     {
-      "alias": "omnex.graph.Budget",
+      "alias": null,
       "branch": "XXVII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Budget Bounds",
       "note": "",
       "verified": false
@@ -4041,17 +4041,17 @@
       "verified": false
     },
     {
-      "alias": "omnex.intel.Source",
+      "alias": null,
       "branch": "XXVIII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Source Fidelity",
       "note": "",
       "verified": false
     },
     {
-      "alias": "omnex.intel.Confidence",
+      "alias": null,
       "branch": "XXVIII",
-      "claim": "proposed",
+      "claim": "gap",
       "name": "Confidence Scoring",
       "note": "",
       "verified": false
