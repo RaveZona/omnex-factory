@@ -99,3 +99,86 @@ def test_the_claim_file_is_valid_json_with_every_field() -> None:
     assert len(raw["nodes"]) == EXPECTED_NODES
     for entry in raw["nodes"]:
         assert set(entry) >= {"branch", "name", "claim", "alias", "verified"}
+
+
+# ── refresh: what a machine may do after code lands ────────────────────────
+def test_refresh_proposes_for_a_gap_once_the_code_exists() -> None:
+    """The case this was built for: `omnex.mcp` landed after the map was written.
+
+    A map that never looks again reports a gap for a capability now in the
+    package, and every number quoting it is wrong from that moment on.
+    """
+    from node_map import Node, refresh
+
+    nodes = [Node(branch="XII", name="MCP", claim="gap", alias=None, verified=False)]
+    moved = refresh(nodes, {"McpClient": "omnex.mcp"})
+    assert moved and nodes[0].claim == "proposed"
+    assert nodes[0].alias == "omnex.mcp.McpClient"
+
+
+def test_refresh_never_reopens_something_a_human_closed() -> None:
+    """Re-proposing a rejection is how a review queue stops shrinking.
+
+    `Code -> omnex.mcp.ErrorCode` was proposed by the first refresh and is wrong.
+    Once somebody says so, it must not come back on the next run, or the queue
+    only ever grows and people stop reading it.
+    """
+    from node_map import Node, refresh
+
+    rejected = Node(
+        branch="XIV",
+        name="Code",
+        claim="rejected",
+        alias="omnex.mcp.ErrorCode",
+        verified=True,
+        note="an error code is not code execution",
+    )
+    accepted = Node(
+        branch="XII", name="MCP", claim="implemented", alias="omnex.mcp.McpClient", verified=True
+    )
+    before = [(n.claim, n.alias) for n in (rejected, accepted)]
+    assert refresh([rejected, accepted], {"ErrorCode": "omnex.mcp"}) == []
+    assert [(n.claim, n.alias) for n in (rejected, accepted)] == before
+
+
+def test_refresh_leaves_a_proposal_somebody_may_be_part_way_through() -> None:
+    from node_map import Node, refresh
+
+    node = Node(
+        branch="VI", name="Chunking", claim="proposed", alias="omnex.rag.Chunk", verified=False
+    )
+    assert refresh([node], {"Chunker": "omnex.rag"}) == []
+    assert node.alias == "omnex.rag.Chunk"
+
+
+def test_a_rejection_needs_a_human_just_as_much_as_an_acceptance() -> None:
+    from node_map import Node, audit
+
+    node = Node(
+        branch="XIV", name="Code", claim="rejected", alias="omnex.mcp.ErrorCode", verified=False
+    )
+    problems = audit([node])
+    assert any("without a human verification" in p for p in problems)
+
+
+def test_an_off_branch_proposal_is_flagged_and_not_filtered() -> None:
+    """The wrong proposals cluster off-branch, but the good ones live there too.
+
+    `Code -> omnex.mcp.ErrorCode` sits on a branch that claims no MCP and is
+    plainly wrong. `Quantization -> omnex.serving.QuantizationProfile` also
+    crosses a boundary and is plainly right. Turning the flag into a filter
+    discards the second to catch the first.
+    """
+    from node_map import Node, off_branch
+
+    modules = {"XIV": {"omnex.graph"}, "XII": {"omnex.mcp"}}
+    wrong = Node(
+        branch="XIV", name="Code", claim="proposed", alias="omnex.mcp.ErrorCode", verified=False
+    )
+    right = Node(
+        branch="XII", name="MCP", claim="proposed", alias="omnex.mcp.McpClient", verified=False
+    )
+    assert off_branch(wrong, modules)
+    assert not off_branch(right, modules)
+    # A branch claiming no modules cannot flag anything, and must not pretend to.
+    assert not off_branch(wrong, {"XIV": set()})

@@ -24,7 +24,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **702 engine tests · 68 TypeScript · 15 citegate**, all green.
+Current state: **751 engine tests · 68 TypeScript · 16 citegate**, all green.
 
 ## engine/src/omnex/ — what each module is for
 
@@ -39,6 +39,7 @@ Current state: **702 engine tests · 68 TypeScript · 15 citegate**, all green.
 | `crew` | multi-agent consensus, hash-chained audit | — |
 | `hitl` | human approval bound to a fingerprint | — |
 | `harness` | long-running loop: worth-it gate, contract, evaluator, edges, isolation, state, outer loop | outer loop watches **cost per accepted change** |
+| `mcp` | JSON-RPC 2.0 tool protocol over a `Transport` Protocol | built because **62 of 509 figures** named it — the top of `BUILD_ORDER.md` |
 | `intel` | opportunity scanning over public sources | — |
 | `memory` `obs` `graph` `llm` `serving` `finetune` `deploy` `tenancy` `pipeline` | agent memory · OTel+Prometheus · graph runtime · provider adapters · inference · LoRA/DPO · packaging · multi-tenancy · queues+webhooks | — |
 
@@ -98,8 +99,12 @@ Current state: **702 engine tests · 68 TypeScript · 15 citegate**, all green.
   Three claims: `gap` (no candidate), `proposed` (an alias that imports,
   unconfirmed), `implemented` (**a person agreed**). A machine proposes and
   verifies resolution; it may never decide two names mean the same
-  capability. Currently 449 gap · 58 proposed · 0 implemented — and zero is
-  correct, not pessimistic.
+  capability. Four claims, not three: `rejected` (a human said no) exists
+  because the first `refresh()` after `omnex.mcp` landed proposed `Code →
+  omnex.mcp.ErrorCode`, which is wrong — and with nowhere to record that, the
+  same wrong proposal returns on every run and the queue can only grow.
+  `refresh()` may propose for a gap; it may never reopen anything verified.
+  Currently 447 gap · 60 proposed · 0 rejected · 0 implemented.
 - `corpus/universal-ai-os/BUILD_ORDER.md` — the join, from
   `scripts/build_order.py`: every node with no code, ranked by how many figures
   name it. **Only direct lexical edges sort it.** Chapter-affinity edges
@@ -108,8 +113,12 @@ Current state: **702 engine tests · 68 TypeScript · 15 citegate**, all green.
   means *no alias was proposed*, never *the capability is absent*: `Vector
   Search` is a gap while `omnex.vectors.HybridStore` is in the package, so a
   node whose branch already exports symbols gets `alias?` (go read that code
-  first), and only a branch exporting nothing gets `build`. Head of the queue,
-  derived rather than chosen: **MCP, 62 figures, branch XII exports nothing.**
+  first), and only a branch exporting nothing gets `build`. **The queue moves as
+  code lands**: MCP led it at 62 figures until `omnex.mcp` was built, at which
+  point branch XII began exporting, the node became `proposed`, and every other
+  XII node went from `build` to `alias?`. `test_the_queue_moved_when_the_node_at_
+  its_head_was_built` is the record of that; the head is no longer pinned by
+  name, because pinning it is what made the first version brittle.
 - `corpus/universal-ai-os/` — 509 figures from *AI Engineering* (Pachaar &
   Chawla), the committed source export beside them, and `RECONCILIATION.md`
   joining corpus weight against `engine/` coverage. `scripts/ingest_atlas.py`

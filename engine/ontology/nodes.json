@@ -1809,9 +1809,9 @@
       "verified": false
     },
     {
-      "alias": null,
+      "alias": "omnex.mcp.McpClient",
       "branch": "XII",
-      "claim": "gap",
+      "claim": "proposed",
       "name": "MCP",
       "note": "",
       "verified": false
@@ -2161,9 +2161,9 @@
       "verified": false
     },
     {
-      "alias": null,
+      "alias": "omnex.mcp.ErrorCode",
       "branch": "XIV",
-      "claim": "gap",
+      "claim": "proposed",
       "name": "Code",
       "note": "",
       "verified": false

@@ -88,18 +88,48 @@ def test_build_is_only_claimed_where_the_branch_exports_nothing() -> None:
         assert status[candidate.branch][2] == 0, f"{candidate.branch} exports symbols"
 
 
-def test_the_head_of_the_queue_is_derived_and_not_asserted() -> None:
-    """MCP leads because 62 figures name it, and its branch exports nothing.
+def test_the_queue_moved_when_the_node_at_its_head_was_built() -> None:
+    """This test failed on purpose, and that failure is the point of it.
 
-    Both halves are read out of committed data. If either changes — the corpus is
-    re-parsed, or `omnex.mcp` lands and branch XII starts exporting — this test
-    is supposed to fail, because the queue has moved and the document quoting it
-    is stale.
+    The first version asserted `ranked[0].name == "MCP"` — 62 figures, branch XII
+    exporting nothing — and said that if either half changed it was supposed to
+    break, because the queue had moved and anything quoting it was stale. Then
+    `omnex.mcp` landed, branch XII started exporting symbols, `node_map.refresh()`
+    proposed an alias, and MCP left the ranking entirely. The test broke exactly
+    where it said it would.
+
+    So it now records the movement rather than the position: MCP is gone from the
+    queue, and every remaining node on that branch has stopped saying `build`,
+    because there is now code on XII to read before writing more.
+    """
+    nodes, _, ranked = _ranked()
+    names = {c.name for c in ranked}
+    assert "MCP" not in names, "MCP is back in the build queue"
+
+    mcp = next(n for n in nodes if n.branch == "XII" and n.name == "MCP")
+    assert mcp.claim == "proposed", "the alias for MCP was lost"
+    assert mcp.alias is not None and mcp.alias.startswith("omnex.mcp.")
+    assert not mcp.verified, "a machine marked a node implemented"
+
+    fabric = [c for c in ranked if c.branch == "XII"]
+    assert fabric, "branch XII lost every node it had evidence for"
+    assert all(c.action == "alias?" for c in fabric)
+
+
+def test_the_head_of_the_queue_is_derived_and_not_asserted() -> None:
+    """Whatever leads, leads because the corpus put it there.
+
+    Deliberately not naming the node: pinning the name is what made the previous
+    test brittle in a useful way once, and twice is a chore. What must hold is
+    that the head is the most-evidenced node with no code, and that it is ahead
+    on direct figures rather than on chapter affinity.
     """
     _, _, ranked = _ranked()
-    assert ranked[0].name == "MCP"
-    assert ranked[0].action == "build"
-    assert ranked[0].direct > 2 * ranked[1].direct, "the lead is no longer decisive"
+    head = ranked[0]
+    assert head.direct == max(c.direct for c in ranked)
+    assert head.direct > head.chapter or head.direct >= 20, (
+        "the head is carried by chapter affinity, which is not evidence"
+    )
 
 
 def test_every_node_is_accounted_for() -> None:

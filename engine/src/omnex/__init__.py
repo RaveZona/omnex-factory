@@ -22,6 +22,7 @@ the deployment pipeline (P11) refuses to deploy past.
     tenancy/ P10 isolation, quotas, usage metering
     serving/ P14 batching, KV cache, load balancing
     finetune/P9  dataset prep, LoRA, DPO, forgetting checks
+    mcp/     JSON-RPC tool protocol: untrusted results, priced per call
 """
 
 __version__ = "0.1.0"

@@ -210,6 +210,18 @@ def render(nodes: list[Node], figures: list[Figure], ranked: list[Candidate]) ->
         "`harness.worth_it` answers that, per node, before any code — and it is "
         "allowed to reject the top of this list.",
         "",
+        "`alias?` is an instruction to look, and looking has two outcomes, both "
+        "recordable. If the code is the capability, commit the alias in "
+        "`nodes.json` and the node leaves this queue. If it is not, name what is "
+        "actually absent in that branch's `missing` list in `branches.json` — the "
+        "way branch XII names A2A. A conclusion that goes in neither place is one "
+        "the next reader has to reach again from scratch.",
+        "",
+        "This queue moves as code lands. MCP led it at 62 direct figures until "
+        "`omnex.mcp` was built; branch XII then began exporting symbols, "
+        "`node_map.refresh()` proposed an alias, and the node left the ranking — "
+        "taking every other XII node from `build` to `alias?` with it.",
+        "",
         f"## The queue — {len(strong)} nodes with {THIN} or more direct figures",
         "",
         "| # | node | branch | direct | chapter | action |",

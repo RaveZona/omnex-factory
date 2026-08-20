@@ -324,16 +324,25 @@
     {
       "id": "XII",
       "name": "Agent Protocol Fabric",
-      "claim": "gap",
-      "modules": [],
-      "symbols": [],
-      "tests": [],
+      "claim": "partial",
+      "modules": [
+        "omnex.mcp"
+      ],
+      "symbols": [
+        "omnex.mcp.McpClient",
+        "omnex.mcp.McpServer",
+        "omnex.mcp.Transport",
+        "omnex.mcp.ToolResult",
+        "omnex.mcp.ToolPrice"
+      ],
+      "tests": [
+        "tests/test_mcp.py"
+      ],
       "measured_by": null,
       "missing": [
-        "MCP server/client surface",
         "A2A agent-to-agent transport"
       ],
-      "note": "HTTP surfaces exist behind the `api` extra, but nothing in engine/ speaks MCP or A2A. This is the largest genuine gap of the twenty-eight.",
+      "note": "MCP now exists: JSON-RPC 2.0 over a Transport Protocol, stdlib only, with tool results returning as untrusted guard.Segment content priced in pico-dollar Money. It was built because BUILD_ORDER.md ranked it first — 62 of 509 figures name it, more than twice the next node — not because it was the interesting one. A2A remains absent. The worth_it block below is unchanged on purpose: it answers whether a long-running LOOP over this branch is economic, which building one module does not alter, and editing it to match what was just shipped is precisely the self-grading this ontology refuses.",
       "worth_it": {
         "repeats_weekly": false,
         "verification_is_automated": true,

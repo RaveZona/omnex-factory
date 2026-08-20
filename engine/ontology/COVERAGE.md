@@ -5,7 +5,7 @@ re-derived by importing the module and resolving the symbol, so editing this
 file changes nothing and editing `ontology/branches.json` to claim more makes
 the script fail.
 
-**24 of 38 branches are backed by code that imports.** 17 implemented · 7 partial · 13 gap · 1 reference-only.
+**25 of 38 branches are backed by code that imports.** 17 implemented · 8 partial · 12 gap · 1 reference-only.
 
 **10 of them were discovered rather than assumed.** The rest came from a proposal written before anyone looked at a source, and a map of an assumed list can confirm every entry on it while missing the field entirely — which is why `source` is a column and not a footnote.
 
@@ -22,7 +22,7 @@ the script fail.
 | IX | Agent Memory | partial | `omnex.memory` | — | proposal |
 | X | Agent Orchestration | implemented | `omnex.graph` | — | proposal |
 | XI | Workflow Automation as an execution target | partial | `omnex.pipeline` | — | proposal |
-| XII | Agent Protocol Fabric | gap | — | — | proposal |
+| XII | Agent Protocol Fabric | partial | `omnex.mcp` | — | proposal |
 | XIII | Data Engineering | implemented | `omnex.vectors`, `omnex.pipeline` | — | proposal |
 | XIV | Tool / Action Fabric | implemented | `omnex.guard` | — | proposal |
 | XV | Security | implemented | `omnex.guard` | `scripts/skill_numbers.py` | proposal |
@@ -107,11 +107,10 @@ NOT worth it — 3 condition(s) fail:
   assessment: there is no standardised way to score a result, so two runs cannot be compared
 ```
 
-### XII · Agent Protocol Fabric (gap)
+### XII · Agent Protocol Fabric (partial)
 
-HTTP surfaces exist behind the `api` extra, but nothing in engine/ speaks MCP or A2A. This is the largest genuine gap of the twenty-eight.
+MCP now exists: JSON-RPC 2.0 over a Transport Protocol, stdlib only, with tool results returning as untrusted guard.Segment content priced in pico-dollar Money. It was built because BUILD_ORDER.md ranked it first — 62 of 509 figures name it, more than twice the next node — not because it was the interesting one. A2A remains absent. The worth_it block below is unchanged on purpose: it answers whether a long-running LOOP over this branch is economic, which building one module does not alter, and editing it to match what was just shipped is precisely the self-grading this ontology refuses.
 
-- missing: MCP server/client surface
 - missing: A2A agent-to-agent transport
 
 ```
