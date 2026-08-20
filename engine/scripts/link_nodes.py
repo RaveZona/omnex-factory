@@ -49,6 +49,7 @@ from omnex.rag.figures import Band
 
 LINKS = CORPUS / "node_links.json"
 COVERAGE = CORPUS / "NODE_COVERAGE.md"
+UNPLACED = CORPUS / "unplaced.json"
 
 #: Tokens too common in this domain to carry a match on their own. A node named
 #: "Agent Memory" must not match every figure that says "agent".
@@ -114,6 +115,21 @@ RARE = 2.5
 #: maximally rare, so its ABSENCE from a match counts heavily against it.
 MAX_IDF = math.log(509.0)
 
+#: A chapter-derived edge can never be auto-accepted. Chapter affinity says
+#: "figures like this one usually land here", which is a prior about a
+#: neighbourhood, not evidence about this figure. Capping it below Band.AUTO is
+#: structural: no tuning of the affinity can promote it into the trusted band.
+CHAPTER_CEILING = 0.84
+
+#: Below this share of a chapter's linked figures, an affinity is noise.
+CHAPTER_FLOOR = 0.06
+
+#: Pages either side that may REINFORCE an existing candidate. Never create one:
+#: a figure that invents an edge from its neighbours propagates one mislink down
+#: a whole chapter, and the result looks more confident the more wrong it is.
+NEIGHBOUR_PAGES = 2
+NEIGHBOUR_BONUS = 0.05
+
 
 def tokens(text: str) -> set[str]:
     return {t for t in re.findall(r"[a-z0-9]+", text.lower()) if len(t) > 1}
@@ -127,6 +143,11 @@ class Link:
     branch_id: str
     node: str
     score: float
+    #: Which signal produced this edge. An edge that cannot say why it exists is
+    #: indistinguishable from one somebody typed, and the three signals here are
+    #: not equally strong — so the reason travels with the edge rather than
+    #: living in a commit message.
+    via: str = "lexical"
 
     @property
     def band(self) -> str:
@@ -174,55 +195,237 @@ def score_match(node_tokens: set[str], figure_tokens: set[str], weight: dict[str
     return min(have / want, 1.0) if want else 0.0
 
 
+def _branch_weight(figure: Figure, name_to_id: dict[str, str]) -> dict[str, float]:
+    """How strongly the exporter scored each branch for this figure.
+
+    Used to modulate a lexical match, never to create one. Normalised into
+    [0.6, 1.0] so a branch the exporter was unsure about still contributes —
+    the scores are the exporter's judgement, and treating them as a hard filter
+    would import its review queue as though it were settled.
+    """
+    if not figure.mappings:
+        return {}
+    top = max(score for _, score in figure.mappings) or 1.0
+    return {
+        name_to_id[name]: 0.6 + 0.4 * (score / top)
+        for name, score in figure.mappings
+        if name in name_to_id
+    }
+
+
+def chapter_affinity(
+    branches: list[Branch], figures: list[Figure], links: list[Link]
+) -> dict[str, list[tuple[str, str, float]]]:
+    """Which nodes the linked figures of each chapter actually landed on.
+
+    Derived from the lexical pass rather than hand-assigned. A hand-written
+    chapter->node table is a second ontology to maintain and drifts from the
+    first; this one cannot disagree with the edges, because it is made of them.
+    """
+    by_chapter: dict[str, dict[tuple[str, str], int]] = {}
+    totals: dict[str, int] = {}
+    placed = {edge.figure_id: edge for edge in links}
+
+    for figure in figures:
+        if figure.id not in placed or not figure.chapter:
+            continue
+        totals[figure.chapter] = totals.get(figure.chapter, 0) + 1
+        for edge in [e for e in links if e.figure_id == figure.id]:
+            key = (edge.branch_id, edge.node)
+            by_chapter.setdefault(figure.chapter, {})
+            by_chapter[figure.chapter][key] = by_chapter[figure.chapter].get(key, 0) + 1
+
+    affinity: dict[str, list[tuple[str, str, float]]] = {}
+    for chapter, counts in by_chapter.items():
+        total = max(totals.get(chapter, 0), 1)
+        rows = [
+            (bid, node, hits / total)
+            for (bid, node), hits in counts.items()
+            if hits / total >= CHAPTER_FLOOR
+        ]
+        affinity[chapter] = sorted(rows, key=lambda r: -r[2])[:6]
+    return affinity
+
+
 def link(branches: list[Branch], figures: list[Figure]) -> list[Link]:
-    """Attach figures to nodes, fenced by the branches each figure already touches."""
+    """Attach figures to nodes with three signals, strongest first.
+
+    1. Lexical, fenced by the branches the export already mapped the figure to,
+       weighted by rarity and by the exporter's own branch score.
+    2. Chapter affinity, for figures the first pass could not place at all.
+       Capped below the auto band by construction.
+    3. Page neighbourhood, which may only reinforce an existing candidate.
+
+    The order matters and is not a preference: a weaker signal never overwrites
+    a stronger one, and never manufactures an edge where the stronger signal
+    found nothing to reinforce.
+    """
     by_figure: dict[str, list[str]] = {}
     for branch in branches:
         for fid in branch.touched:
             by_figure.setdefault(fid, []).append(branch.id)
 
+    name_to_id = {b.name: b.id for b in branches}
     nodes_of = {b.id: [(n, tokens(n)) for n in b.node_names] for b in branches}
     weight = inverse_frequency(figures)
     links: list[Link] = []
 
+    # --- signal 1: lexical ---------------------------------------------------
     for figure in figures:
         text = tokens(f"{figure.title} {figure.caption} {figure.ocr}")
         if not text:
             continue
+        branch_weight = _branch_weight(figure, name_to_id)
         for branch_id in by_figure.get(figure.id, []):
+            modifier = branch_weight.get(branch_id, 1.0)
             for node, node_tokens in nodes_of.get(branch_id, []):
-                score = score_match(node_tokens, text, weight)
-                if score >= FLOOR:
-                    links.append(Link(figure.id, branch_id, node, score))
+                raw = score_match(node_tokens, text, weight)
+                if raw < FLOOR:
+                    continue
+                # The exporter's branch score RANKS a match; it never gates one.
+                # Multiplying before the floor test dropped 37 lexically exact
+                # edges and nine nodes with them — trading node coverage for
+                # figure coverage, which is not a repair.
+                score = max(min(raw * modifier, 1.0), FLOOR)
+                links.append(Link(figure.id, branch_id, node, score, "lexical"))
 
-    links.sort(key=lambda edge: (-edge.score, edge.figure_id))
-    return links
+    # --- signal 2: chapter affinity, only for figures still unplaced ----------
+    affinity = chapter_affinity(branches, figures, links)
+    placed = {edge.figure_id for edge in links}
+    for figure in figures:
+        if figure.id in placed or not figure.chapter:
+            continue
+        allowed = set(by_figure.get(figure.id, []))
+        for branch_id, node, share in affinity.get(figure.chapter, []):
+            if branch_id not in allowed:
+                continue
+            score = min(FLOOR + share, CHAPTER_CEILING)
+            if score >= FLOOR:
+                links.append(Link(figure.id, branch_id, node, score, "chapter"))
+
+    # --- signal 3: neighbourhood reinforcement -------------------------------
+    pages: dict[int, set[tuple[str, str]]] = {}
+    for edge in links:
+        page = next((f.pdf_page for f in figures if f.id == edge.figure_id), -1)
+        pages.setdefault(page, set()).add((edge.branch_id, edge.node))
+
+    reinforced: list[Link] = []
+    for edge in links:
+        figure = next(f for f in figures if f.id == edge.figure_id)
+        near = any(
+            (edge.branch_id, edge.node) in pages.get(figure.pdf_page + delta, set())
+            for delta in range(-NEIGHBOUR_PAGES, NEIGHBOUR_PAGES + 1)
+            if delta != 0
+        )
+        if near and edge.via == "lexical":
+            reinforced.append(
+                Link(
+                    edge.figure_id,
+                    edge.branch_id,
+                    edge.node,
+                    min(edge.score + NEIGHBOUR_BONUS, 1.0),
+                    "reinforced",
+                )
+            )
+        else:
+            reinforced.append(edge)
+
+    reinforced.sort(key=lambda edge: (-edge.score, edge.figure_id))
+    return reinforced
 
 
-def render(branches: list[Branch], figures: list[Figure], links: list[Link]) -> str:
+def unplaced(figures: list[Figure], links: list[Link]) -> list[dict[str, str]]:
+    """Every figure with no edge, and the reason — filtering is not deletion.
+
+    `intel.FilterReport.reconciles()` exists because a pipeline that loses rows
+    to an off-by-one reports a clean-looking result. The same applies here with
+    more force: a coverage document that quietly counts 296 of 509 and calls it
+    coverage is worse than one that reports 213 misses, because the first cannot
+    be argued with.
+    """
+    linked = {edge.figure_id for edge in links}
+    out: list[dict[str, str]] = []
+    for figure in figures:
+        if figure.id in linked:
+            continue
+        text = f"{figure.title} {figure.caption} {figure.ocr}".strip()
+        if not text:
+            reason = "no title, caption or OCR text to match on"
+        elif not figure.chapter:
+            reason = "no chapter, so no affinity fallback"
+        else:
+            reason = (
+                "no node name overlaps its text, and its chapter has no affinity above the floor"
+            )
+        out.append(
+            {
+                "figure_id": figure.id,
+                "chapter": figure.chapter,
+                "role": figure.role,
+                "primary_branch": figure.primary_branch,
+                "reason": reason,
+            }
+        )
+    return out
+
+
+def render(
+    branches: list[Branch],
+    figures: list[Figure],
+    links: list[Link],
+    missing: list[dict[str, str]],
+) -> str:
     total_nodes = sum(b.nodes for b in branches)
     reached = {(edge.branch_id, edge.node) for edge in links}
-    figures_linked = {edge.figure_id for edge in links}
-    auto = [edge for edge in links if edge.band == "auto"]
+    placed = {edge.figure_id for edge in links}
+    by_via: dict[str, int] = {}
+    for edge in links:
+        by_via[edge.via] = by_via.get(edge.via, 0) + 1
 
     lines = [
         "# Figure-to-node coverage",
         "",
         "Generated by `engine/scripts/link_nodes.py`. Do not edit.",
         "",
-        f"**{len(reached)} of {total_nodes} nodes are reached by at least one figure.** "
-        f"{len(links)} edges from {len(figures_linked)} of {len(figures)} figures; "
-        f"{len(auto)} of those edges are auto-accept, the rest need review.",
+        "## Two coverages, and only one of them is nearly done",
         "",
-        "Matching is lexical — node name tokens against a figure's title, caption "
-        'and OCR — so recall is bounded by vocabulary. A figure captioned "the '
-        'retrieval step" never reaches a node named "Hybrid Search", and no '
-        "threshold fixes that. **The uncovered count is therefore an upper bound on "
-        "what this corpus evidences, not a claim that those nodes are unimportant.**",
+        f"**Figures placed: {len(placed)} of {len(figures)}.** The remaining "
+        f"{len(missing)} are listed individually in `unplaced.json` with a reason "
+        "each. Placed plus unplaced must equal the manifest, or the run fails — "
+        "filtering is not deletion.",
         "",
-        "A figure may only match nodes on branches the export already mapped it to. "
-        "Without that fence the graph fills with edges that render convincingly and "
-        "mean nothing.",
+        f"**Nodes reached: {len(reached)} of {total_nodes}.** This did not improve "
+        "when figure placement did, and it structurally cannot: chapter affinity "
+        "is derived from where lexical matches already landed, so it spreads "
+        "coverage across figures without discovering a single new node. "
+        f"The {total_nodes - len(reached)} unreached nodes need work on the NODE "
+        "side — names and aliases — not on the figure side. Reporting the first "
+        "number alone would hide that entirely.",
+        "",
+        f"{len(links)} edges: "
+        + " · ".join(f"{count} {via}" for via, count in sorted(by_via.items())),
+        "",
+        "## What each signal is allowed to do",
+        "",
+        "- **lexical** — node name tokens against title, caption and OCR, weighted "
+        "by how rare each token is, fenced by the branches the export already "
+        "mapped the figure to. The exporter's own branch score ranks a match and "
+        "never gates one; multiplying before the floor test dropped 37 exact "
+        "matches and nine nodes with them.",
+        "- **chapter** — for figures the lexical pass could not place at all. "
+        f"Capped at {CHAPTER_CEILING} by construction, which is below the auto "
+        "band, so no tuning of the affinity can promote a chapter guess into the "
+        "trusted band. Affinity is derived from the lexical edges rather than "
+        "hand-written, so it cannot disagree with them.",
+        "- **reinforced** — a lexical edge whose node also appears within "
+        f"{NEIGHBOUR_PAGES} pages. It may only strengthen an existing candidate. "
+        "A figure that could invent an edge from its neighbours would propagate "
+        "one mislink down a whole chapter and look more confident for it.",
+        "",
+        "Matching is lexical and structural, never semantic: a figure captioned "
+        '"the retrieval step" does not reach a node named "Hybrid Search". **The '
+        "unreached count is an upper bound on what this corpus evidences, not a "
+        "verdict on the nodes.**",
         "",
         "| # | Branch | Nodes | Reached | Edges |",
         "|---|---|--:|--:|--:|",
@@ -237,10 +440,10 @@ def render(branches: list[Branch], figures: list[Figure], links: list[Link]) -> 
         "",
         "## The number this was built to produce",
         "",
-        f"{total_nodes - len(reached)} of {total_nodes} nodes have no figure at all. "
-        "Every one of them is a claim standing on somebody writing it down, with "
-        "nothing from this corpus behind it. That is the same finding ontology v2 "
-        "made at branch level, one level finer and considerably less comfortable.",
+        f"{total_nodes - len(reached)} of {total_nodes} nodes have no figure at "
+        "all. Every one is a claim standing on somebody having written it down, "
+        "with nothing from this corpus behind it. That is the ontology v2 finding "
+        "one level finer and considerably less comfortable.",
         "",
     ]
     return "\n".join(lines) + "\n"
@@ -249,6 +452,12 @@ def render(branches: list[Branch], figures: list[Figure], links: list[Link]) -> 
 def main() -> int:
     branches, figures = parse(EXPORT.read_text(encoding="utf-8"))
     links = link(branches, figures)
+    missing = unplaced(figures, links)
+
+    placed = {edge.figure_id for edge in links}
+    if len(placed) + len(missing) != len(figures):
+        print(f"FAIL {len(placed)} placed + {len(missing)} unplaced != {len(figures)} figures")
+        return 1
 
     LINKS.write_text(
         json.dumps(
@@ -261,6 +470,7 @@ def main() -> int:
                         "node": edge.node,
                         "score": round(edge.score, 4),
                         "band": edge.band,
+                        "via": edge.via,
                     }
                     for edge in links
                 ],
@@ -271,14 +481,15 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
-    COVERAGE.write_text(render(branches, figures, links), encoding="utf-8")
+    COVERAGE.write_text(render(branches, figures, links, missing), encoding="utf-8")
+    UNPLACED.write_text(json.dumps(missing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     reached = {(edge.branch_id, edge.node) for edge in links}
     total_nodes = sum(b.nodes for b in branches)
     print(f"{len(links)} edges · {len(reached)}/{total_nodes} nodes reached")
-    print(f"  figures with at least one node: {len({e.figure_id for e in links})}/{len(figures)}")
+    print(f"  figures placed:   {len(placed)}/{len(figures)}  (+{len(missing)} accounted for)")
     print(f"  auto-accept edges: {sum(1 for e in links if e.band == 'auto')}")
-    print(f"\nwrote {LINKS.name} and {COVERAGE.name}")
+    print(f"\nwrote {LINKS.name}, {COVERAGE.name}, {UNPLACED.name}")
     return 0
 
 

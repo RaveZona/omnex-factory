@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, field
+from dataclasses import field as dcfield
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +78,7 @@ _FIELD_RES = {
     "sha": re.compile(r"sha `([0-9a-f]+)`"),
     "dup": re.compile(r"dup group `(\w+)`"),
     "caption": re.compile(r"\*\*Caption:\*\* (.+?)$", re.M),
+    "mapping": re.compile(r"\*\*Mapping:\*\* (.+?)$", re.M),
     "ocr": re.compile(r"\*\*OCR:\*\* (.+?)$", re.M),
 }
 
@@ -122,6 +124,11 @@ class Figure:
     duplicate_group: str
     caption: str
     ocr: str
+    #: Every branch the exporter scored for this figure, strongest first.
+    #: The export publishes three; earlier versions of this parser read the
+    #: primary and dropped the rest, which threw away the only per-figure
+    #: signal in the document about where else it belongs.
+    mappings: list[tuple[str, float]] = dcfield(default_factory=list)
 
     @property
     def band(self) -> str:
@@ -199,7 +206,18 @@ def _figure_from(fid: str, title: str, block: str) -> Figure:
         duplicate_group=one("dup"),
         caption=one("caption"),
         ocr=one("ocr"),
+        mappings=_mappings(one("mapping")),
     )
+
+
+def _mappings(raw: str) -> list[tuple[str, float]]:
+    """Parse `Name (0.74) · Other (0.48)` into scored branch names."""
+    out: list[tuple[str, float]] = []
+    for part in raw.split("·"):
+        found = re.match(r"\s*(.+?)\s*\(([\d.]+)\)\s*$", part)
+        if found:
+            out.append((found.group(1).strip(), float(found.group(2))))
+    return out
 
 
 def reconcile(branches: list[Branch], figures: list[Figure]) -> str:

@@ -13,7 +13,16 @@ from __future__ import annotations
 
 import pytest
 from ingest_atlas import EXPORT, parse
-from link_nodes import FLOOR, STOPWORDS, inverse_frequency, link, score_match, tokens
+from link_nodes import (
+    CHAPTER_CEILING,
+    FLOOR,
+    STOPWORDS,
+    inverse_frequency,
+    link,
+    score_match,
+    tokens,
+    unplaced,
+)
 
 pytestmark = pytest.mark.skipif(
     not EXPORT.exists(), reason="the Universal AI OS export is not in this checkout"
@@ -96,8 +105,75 @@ def test_the_uncovered_count_is_reported_as_an_upper_bound() -> None:
 
     page = COVERAGE.read_text(encoding="utf-8")
     assert "upper bound" in page
-    assert "bounded by vocabulary" in page
+    assert "never semantic" in page
+    assert "not a verdict on the nodes" in page
 
 
 def test_tokens_ignores_single_characters() -> None:
     assert tokens("A B mcp") == {"mcp"}
+
+
+def test_every_figure_is_placed_or_accounted_for() -> None:
+    """The reconciliation. "We covered them all" has to be checkable.
+
+    A coverage document that quietly counts 296 of 509 and calls it coverage is
+    worse than one reporting 213 misses, because the first cannot be argued
+    with. Placed plus unplaced must equal the manifest exactly.
+    """
+    _, figures, links = _linked()
+    missing = unplaced(figures, links)
+    placed = {edge.figure_id for edge in links}
+    assert len(placed) + len(missing) == len(figures)
+    assert not (placed & {row["figure_id"] for row in missing})
+
+
+def test_every_unplaced_figure_names_a_reason() -> None:
+    _, figures, links = _linked()
+    for row in unplaced(figures, links):
+        assert row["reason"].strip(), row["figure_id"]
+
+
+def test_a_chapter_edge_can_never_be_auto_accepted() -> None:
+    """Structural, not tuned.
+
+    Chapter affinity says "figures like this one usually land here" — a prior
+    about a neighbourhood, not evidence about this figure. The ceiling sits
+    below the auto band, so no affinity value can promote a guess into the
+    trusted band.
+    """
+    from omnex.rag.figures import Band
+
+    assert CHAPTER_CEILING < 0.85
+    _, _, links = _linked()
+    chapter_edges = [e for e in links if e.via == "chapter"]
+    assert chapter_edges, "the chapter signal produced nothing"
+    assert all(e.band != str(Band.AUTO) for e in chapter_edges)
+
+
+def test_neighbourhood_only_reinforces_what_lexical_found() -> None:
+    """It may strengthen a candidate; it may never invent one.
+
+    A figure that could create an edge from its neighbours propagates a single
+    mislink down a whole chapter, and the result reads as more confident the
+    more wrong it is.
+    """
+    _, _, links = _linked()
+    reinforced = [e for e in links if e.via == "reinforced"]
+    assert reinforced
+    # Every reinforced edge is a lexical edge that was promoted, so its node
+    # must also be reachable lexically somewhere in the corpus.
+    lexical_nodes = {(e.branch_id, e.node) for e in links if e.via in ("lexical", "reinforced")}
+    assert all((e.branch_id, e.node) in lexical_nodes for e in reinforced)
+
+
+def test_placing_more_figures_did_not_silently_lower_node_coverage() -> None:
+    """The regression this file caught during its own construction.
+
+    Weighting a lexical match by the exporter's branch score BEFORE the floor
+    test dropped 37 exact matches and nine nodes with them — better figure
+    coverage bought with worse node coverage, which is not a repair. The score
+    now ranks a match and never gates one.
+    """
+    _, _, links = _linked()
+    reached = {(e.branch_id, e.node) for e in links}
+    assert len(reached) >= 134, f"node coverage fell to {len(reached)}"
