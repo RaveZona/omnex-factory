@@ -94,6 +94,12 @@ Current state: **495 engine tests · 68 TypeScript · 15 citegate**, all green.
   document. A map of an assumed list can confirm every entry on it and still be
   missing the field — v1 said 10 gaps against 28 assumed branches, and reading
   one corpus added 10 more.
+- `engine/ontology/nodes.json` — all **507 nodes** against exported symbols.
+  Three claims: `gap` (no candidate), `proposed` (an alias that imports,
+  unconfirmed), `implemented` (**a person agreed**). A machine proposes and
+  verifies resolution; it may never decide two names mean the same
+  capability. Currently 449 gap · 58 proposed · 0 implemented — and zero is
+  correct, not pessimistic.
 - `corpus/universal-ai-os/` — 509 figures from *AI Engineering* (Pachaar &
   Chawla), the committed source export beside them, and `RECONCILIATION.md`
   joining corpus weight against `engine/` coverage. `scripts/ingest_atlas.py`
