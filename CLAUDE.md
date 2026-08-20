@@ -24,7 +24,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **793 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **830 engine tests · 68 TypeScript · 16 citegate**, all green.
 
 ## engine/src/omnex/ — what each module is for
 
@@ -40,7 +40,7 @@ Current state: **793 engine tests · 68 TypeScript · 16 citegate**, all green.
 | `hitl` | human approval bound to a fingerprint | — |
 | `harness` | long-running loop: worth-it gate, contract, evaluator, edges, isolation, state, outer loop | outer loop watches **cost per accepted change** |
 | `mcp` | JSON-RPC 2.0 tool protocol over a `Transport` Protocol | built because **62 of 509 figures** named it — the top of `BUILD_ORDER.md` |
-| `factory` | capabilities → a fingerprinted `AgentSpec`; the gate order as a **type** | `worth_it` at the head of ten stages |
+| `factory` | capabilities → a fingerprinted `AgentSpec`; the gate order as a **type**; compilers to code · MCP · n8n | `worth_it` at the head of ten stages; `parse(emit(bp)) == bp` across **3 targets × 5 paradigms** |
 | `intel` | opportunity scanning over public sources | — |
 | `memory` `obs` `graph` `llm` `serving` `finetune` `deploy` `tenancy` `pipeline` | agent memory · OTel+Prometheus · graph runtime · provider adapters · inference · LoRA/DPO · packaging · multi-tenancy · queues+webhooks | — |
 
@@ -145,6 +145,18 @@ Current state: **793 engine tests · 68 TypeScript · 16 citegate**, all green.
   **`Stage` is the `StrEnum` trap in the flesh**: inherited string comparison
   makes `Stage.DEPLOY < Stage.IDEA` true, and `@total_ordering` fills in nothing
   because all four operators are already inherited. They are written out.
+- `engine/src/omnex/factory/compile/` — one neutral `Blueprint` (topology, never
+  implementation) and three emitters: a runnable `graph.Graph`, an MCP server
+  manifest, an n8n workflow JSON. **The property that makes them compilers is
+  `parse(emit(bp)) == bp`**, checked across every target × paradigm, and
+  `test_the_round_trip_check_can_actually_fail` breaks an emitter on purpose so
+  the other fifteen are not comparing an artifact with itself. That matrix found
+  a real bug: n8n read tool prices off tool *nodes*, so four of five paradigms
+  lost every price and the workflow still imported. Prices now travel in `meta`.
+  Every n8n node is `noOp` and says **in its own `notes` field** that it is a
+  placeholder — a spec names a tool and its price, never the endpoint,
+  credential or payload, and inventing those ships configuration nobody
+  supplied.
 - `skills/` — five packaged skills, each carrying its measured number
 - `intel/` — committed scan snapshots and reports
 - `oss/citegate/` — standalone, dependency-free citation checker

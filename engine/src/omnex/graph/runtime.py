@@ -133,6 +133,9 @@ class Graph:
         self._nodes: dict[str, Node] = {}
         self._edges: dict[str, str] = {}
         self._routers: dict[str, Router] = {}
+        #: Declared branch targets, where a router could name them. See
+        #: `add_conditional_edge` for why this is optional.
+        self._router_targets: dict[str, tuple[str, ...]] = {}
         self._entry: str = ""
         #: Nodes that stop the run and hand control back to the caller. P15's
         #: approval gates are these.
@@ -151,8 +154,26 @@ class Graph:
         self._edges[source] = target
         return self
 
-    def add_conditional_edge(self, source: str, router: Router) -> Graph:
+    def add_conditional_edge(
+        self, source: str, router: Router, targets: tuple[str, ...] = ()
+    ) -> Graph:
+        """A router, and optionally the set of nodes it may choose.
+
+        Declaring `targets` moves a whole class of failure from run time to
+        construction time. Without it, `validate()` can only check that the
+        router's SOURCE exists; a router returning a typo'd node name is caught
+        by `_next` mid-run, after every node before it has already spent money.
+        With it, the typo fails before anything runs.
+
+        Optional rather than required because a router computing its target
+        dynamically cannot enumerate one, and forcing a wrong answer is worse
+        than accepting no answer. Declared targets are also what lets a compiler
+        read a graph's topology back out of it — a router is a closure, and
+        nothing can recover the branches from a closure.
+        """
         self._routers[source] = router
+        if targets:
+            self._router_targets[source] = tuple(targets)
         return self
 
     def set_entry(self, name: str) -> Graph:
@@ -182,9 +203,38 @@ class Graph:
         for source in self._routers:
             if source not in self._nodes:
                 raise ValidationFailed(f"conditional edge from unknown node {source!r}")
+        for source, targets in self._router_targets.items():
+            for target in targets:
+                if target != END and target not in self._nodes:
+                    raise ValidationFailed(
+                        f"router at {source!r} declares unknown target {target!r}"
+                    )
         for name in self._nodes:
             if name not in self._edges and name not in self._routers:
                 raise ValidationFailed(f"node {name!r} has no outgoing edge")
+
+    def topology(self) -> dict[str, tuple[str, ...]]:
+        """Every node and where it can go, as plain data.
+
+        Exists so a compiler can read a built graph back out and compare it with
+        what it meant to build. A compiler that cannot re-read its own output is
+        not a compiler, and for the code target the output IS this object rather
+        than a file — which makes the comparison stronger, not weaker: it checks
+        the graph the runtime would actually execute.
+        """
+        out: dict[str, tuple[str, ...]] = {}
+        for name in self._nodes:
+            if name in self._router_targets:
+                out[name] = self._router_targets[name]
+            elif name in self._routers:
+                out[name] = ()
+            else:
+                out[name] = (self._edges.get(name, END),)
+        return out
+
+    @property
+    def entry(self) -> str:
+        return self._entry
 
     # ── execution ─────────────────────────────────────────────────────────
     def run(

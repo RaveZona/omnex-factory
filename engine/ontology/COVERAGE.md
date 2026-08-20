@@ -21,7 +21,7 @@ the script fail.
 | VIII | Multi-Agent | implemented | `omnex.crew` | — | proposal |
 | IX | Agent Memory | partial | `omnex.memory` | — | proposal |
 | X | Agent Orchestration | implemented | `omnex.graph` | — | proposal |
-| XI | Workflow Automation as an execution target | partial | `omnex.pipeline` | — | proposal |
+| XI | Workflow Automation as an execution target | partial | `omnex.pipeline`, `omnex.factory` | — | proposal |
 | XII | Agent Protocol Fabric | partial | `omnex.mcp` | — | proposal |
 | XIII | Data Engineering | implemented | `omnex.vectors`, `omnex.pipeline` | — | proposal |
 | XIV | Tool / Action Fabric | implemented | `omnex.guard` | — | proposal |
@@ -96,9 +96,9 @@ NOT worth it — 3 condition(s) fail:
 
 ### XI · Workflow Automation as an execution target (partial)
 
-Queues, workers, webhooks with signature verification, idempotency, retries and dead-letter all exist as a runtime. What does not exist is emitting that runtime as an n8n workflow someone else can host.
+Queues, workers, webhooks with signature verification, idempotency, retries and dead-letter exist as a runtime, and omnex.factory.compile now emits that shape as an n8n workflow JSON somebody can import into their own instance. Every emitted node is n8n-nodes-base.noOp and says so in its own notes field: an AgentSpec names a tool and its price and does not name the endpoint, credential or payload, so filling those in would ship invented configuration as though somebody had supplied it. What is missing is the binding a person supplies, not the compiler.
 
-- missing: a compiler that emits an n8n workflow blueprint from a graph
+- missing: tool bindings — endpoint, method and credential per tool — so an emitted n8n workflow runs instead of importing as a wiring diagram
 
 ```
 NOT worth it — 3 condition(s) fail:
@@ -122,9 +122,9 @@ NOT worth it — 3 condition(s) fail:
 
 ### XX · AI Development / coding agents (partial)
 
-The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory now makes the gate order a TYPE rather than a diagram: idea, market, unit economics, architecture, simulation, evaluation, security, deploy, observe, scale-or-kill, with Pipeline.advance() refusing anything out of order and worth_it at the head. A spec is fingerprinted and bound to a harness.Contract, so one rescoped after approval fails the next gate. What is still missing is the other half: nothing yet COMPILES a spec into something that runs.
+The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory makes the gate order a TYPE rather than a diagram, with worth_it at its head and a spec fingerprinted against a harness.Contract. A spec now COMPILES to three targets through one neutral blueprint, each required to re-read its own output: parse(emit(bp)) == bp, checked across five paradigms, and the check is itself tested by breaking an emitter on purpose. What is still missing is money attached to a run rather than to a spreadsheet.
 
-- missing: compilers that emit a spec to a runnable target — code, MCP topology, n8n blueprint
+- missing: per-run economics attached to a compiled agent: revenue minus model, tool, infra and review cost, per request and per customer
 
 ```
 worth it: all seven conditions hold
