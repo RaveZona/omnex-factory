@@ -153,10 +153,19 @@ def parse(text: str) -> tuple[list[Branch], list[Figure]]:
     ]
 
     # Node names live in the per-branch tables; the first column of each row.
+    #
+    # The block must end at the next heading of EITHER level. Bounding it only by
+    # the next `###` let the last branch run past the end of section 4 and into
+    # the figure index, collecting 510 figure ids as though they were nodes —
+    # 1017 parsed names against 507 declared. It went unnoticed because
+    # EXPECTED_NODES is summed from the branch HEADERS while the linker consumes
+    # the parsed NAMES: the assertion and the consumer read different sources, so
+    # the count agreed with itself and with nothing else.
     for branch in branches:
         start = text.index(f"### {branch.id}. {branch.name}")
         rest = text[start:]
-        end = rest.find("\n### ", 1)
+        stops = [pos for pos in (rest.find("\n### ", 1), rest.find("\n## ", 1)) if pos > 0]
+        end = min(stops) if stops else -1
         block = rest[: end if end > 0 else len(rest)]
         branch.node_names = [
             row.split("|")[1].strip()
@@ -313,6 +322,13 @@ def main() -> int:
         problems.append(
             f"branch headers total {total_nodes} nodes, export declares {EXPECTED_NODES}"
         )
+    for branch in branches:
+        if len(branch.node_names) != branch.nodes:
+            problems.append(
+                f"branch {branch.id} declares {branch.nodes} nodes, "
+                f"{len(branch.node_names)} names parsed"
+            )
+
     declared = sum(b.figures for b in branches)
     if declared != EXPECTED_FIGURES:
         problems.append(
