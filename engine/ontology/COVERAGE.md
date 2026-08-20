@@ -5,7 +5,7 @@ re-derived by importing the module and resolving the symbol, so editing this
 file changes nothing and editing `ontology/branches.json` to claim more makes
 the script fail.
 
-**25 of 38 branches are backed by code that imports.** 17 implemented · 8 partial · 12 gap · 1 reference-only.
+**25 of 38 branches are backed by code that imports.** 16 implemented · 9 partial · 12 gap · 1 reference-only.
 
 **10 of them were discovered rather than assumed.** The rest came from a proposal written before anyone looked at a source, and a map of an assumed list can confirm every entry on it while missing the field entirely — which is why `source` is a column and not a footnote.
 
@@ -34,10 +34,10 @@ the script fail.
 | XXI | Business Automation | gap | — | — | proposal |
 | XXII | Agentic Commerce | gap | — | — | proposal |
 | XXIII | Product Engine | gap | — | — | proposal |
-| XXIV | Revenue Engine | implemented | `omnex.intel` | — | proposal |
+| XXIV | Revenue Engine | implemented | `omnex.intel`, `omnex.factory` | — | proposal |
 | XXV | Opportunity Engine | implemented | `omnex.intel` | — | proposal |
-| XXVI | Agent Portfolio | implemented | `omnex.intel` | — | proposal |
-| XXVII | Autonomous Self-Improvement | implemented | `omnex.harness` | — | proposal |
+| XXVI | Agent Portfolio | partial | `omnex.intel`, `omnex.factory` | — | proposal |
+| XXVII | Autonomous Self-Improvement | implemented | `omnex.harness`, `omnex.factory` | — | proposal |
 | XXVIII | Meta-layer | partial | `omnex.harness`, `omnex.intel` | — | proposal |
 | XXIX | Constrained decoding and schema enforcement | gap | — | — | derived |
 | XXX | AST-aware code chunking | gap | — | — | derived |
@@ -124,7 +124,7 @@ NOT worth it — 3 condition(s) fail:
 
 The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory makes the gate order a TYPE rather than a diagram, with worth_it at its head and a spec fingerprinted against a harness.Contract. A spec now COMPILES to three targets through one neutral blueprint, each required to re-read its own output: parse(emit(bp)) == bp, checked across five paradigms, and the check is itself tested by breaking an emitter on purpose. What is still missing is money attached to a run rather than to a spreadsheet.
 
-- missing: per-run economics attached to a compiled agent: revenue minus model, tool, infra and review cost, per request and per customer
+- missing: the chain wired to a live paying surface — the machinery runs end to end in tests, and module N+1 does not open until module N has taken a payment
 
 ```
 worth it: all seven conditions hold
@@ -172,6 +172,20 @@ NOT worth it — 5 condition(s) fail:
   verified: nothing can fail the work automatically, so a human reads every result — which is the job the loop was supposed to remove
   goal: there is no metric that moves, so 'better' is unfalsifiable
   method: there is no defined way to make a change, so there is nothing to iterate
+  assessment: there is no standardised way to score a result, so two runs cannot be compared
+```
+
+### XXVI · Agent Portfolio (partial)
+
+Opportunity and threat scored on two axes that are never blended into one number. Applied to one live module it is n=1 — the code is not the constraint here, customers are. Live agents are now assets with one explicit decision each — scale, optimise, refactor, merge, reposition, license, kill — and recommend() proposes while only enact() records a person's name against it. Three refusals: too few runs is WATCH, nothing is killed on a dimension nobody measured, and MERGE comes from overlap across the portfolio because it cannot be decided about one asset alone.
+
+- missing: a second live module — the portfolio machinery is ready and n=1 is not a portfolio, which report() states on its own first line
+
+```
+NOT worth it — 4 condition(s) fail:
+  repeats: the task does not recur often enough for the setup to pay back — one good prompt is cheaper than a loop that runs once
+  verified: nothing can fail the work automatically, so a human reads every result — which is the job the loop was supposed to remove
+  goal: there is no metric that moves, so 'better' is unfalsifiable
   assessment: there is no standardised way to score a result, so two runs cannot be compared
 ```
 
@@ -301,7 +315,7 @@ NOT worth it — 1 condition(s) fail:
 
 ## Reading of the whole map
 
-20 branches have work left. 1 of them passes all seven conditions for a loop to own.
+21 branches have work left. 1 of them passes all seven conditions for a loop to own.
 
 The condition that refuses most of them is `repeats`: a branch is built once,
 and a loop pointed at a one-off spends whether or not it ships. That is the

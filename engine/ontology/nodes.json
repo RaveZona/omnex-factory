@@ -3337,9 +3337,9 @@
       "verified": false
     },
     {
-      "alias": null,
+      "alias": "omnex.factory.Recommendation",
       "branch": "XXII",
-      "claim": "gap",
+      "claim": "proposed",
       "name": "Recommendation",
       "note": "",
       "verified": false
@@ -3737,9 +3737,9 @@
       "verified": false
     },
     {
-      "alias": null,
+      "alias": "omnex.factory.Margin",
       "branch": "XXVI",
-      "claim": "gap",
+      "claim": "proposed",
       "name": "Margin",
       "note": "",
       "verified": false
@@ -3849,9 +3849,9 @@
       "verified": false
     },
     {
-      "alias": null,
+      "alias": "omnex.factory.observe",
       "branch": "XXVII",
-      "claim": "gap",
+      "claim": "proposed",
       "name": "Observe",
       "note": "",
       "verified": false

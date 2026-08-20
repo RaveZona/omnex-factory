@@ -24,7 +24,8 @@ the deployment pipeline (P11) refuses to deploy past.
     finetune/P9  dataset prep, LoRA, DPO, forgetting checks
     mcp/     JSON-RPC tool protocol: untrusted results, priced per call
     factory/ node capabilities -> a fingerprinted AgentSpec, gates as a type,
-             and compilers to three targets that re-read their own output
+             compilers to three targets that re-read their own output,
+             per-run economics, a portfolio of live agents, and the loop back
 """
 
 __version__ = "0.1.0"

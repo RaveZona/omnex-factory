@@ -24,7 +24,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **830 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **886 engine tests · 68 TypeScript · 16 citegate**, all green.
 
 ## engine/src/omnex/ — what each module is for
 
@@ -40,7 +40,7 @@ Current state: **830 engine tests · 68 TypeScript · 16 citegate**, all green.
 | `hitl` | human approval bound to a fingerprint | — |
 | `harness` | long-running loop: worth-it gate, contract, evaluator, edges, isolation, state, outer loop | outer loop watches **cost per accepted change** |
 | `mcp` | JSON-RPC 2.0 tool protocol over a `Transport` Protocol | built because **62 of 509 figures** named it — the top of `BUILD_ORDER.md` |
-| `factory` | capabilities → a fingerprinted `AgentSpec`; the gate order as a **type**; compilers to code · MCP · n8n | `worth_it` at the head of ten stages; `parse(emit(bp)) == bp` across **3 targets × 5 paradigms** |
+| `factory` | spec · gates · compilers · per-run economics · portfolio · the loop back | `worth_it` at the head of ten stages; `parse(emit(bp)) == bp` across **3 targets × 5 paradigms**; margin per run in exact picos |
 | `intel` | opportunity scanning over public sources | — |
 | `memory` `obs` `graph` `llm` `serving` `finetune` `deploy` `tenancy` `pipeline` | agent memory · OTel+Prometheus · graph runtime · provider adapters · inference · LoRA/DPO · packaging · multi-tenancy · queues+webhooks | — |
 
@@ -157,6 +157,33 @@ Current state: **830 engine tests · 68 TypeScript · 16 citegate**, all green.
   placeholder — a spec names a tool and its price, never the endpoint,
   credential or payload, and inventing those ships configuration nobody
   supplied.
+- `engine/src/omnex/factory/economics.py` — margin per run, per agent, per
+  customer, in exact picos. **Acquisition is not a per-run cost**: charging it
+  that way makes a customer look worse the more they use the product, so it is
+  answered by `payback_runs()` instead. A failed run is costed and counted, or
+  the cheapest agent is one that fails everything. Margin is reported as a
+  distribution — `worst()` is the number that says "cap the loop", the mean is
+  the number that says everything is fine. `is_losing_money()` is **three-valued**
+  and answers `None` below `MINIMUM_RUNS`, like `router.break_even()`.
+  `cost_drift()` compares what the gate approved (an estimate) against what
+  happened (a measurement) — the `metering.ts` `estimated: boolean` rule again.
+- `engine/src/omnex/factory/portfolio.py` — live agents as assets with one
+  explicit decision each. **`recommend()` proposes, `enact()` records a person's
+  name** — the node map's rule at the level where it costs most, because `KILL`
+  is irreversible and is what an optimiser under cost pressure reaches for
+  first. Three refusals: too few runs is `WATCH`; nothing is killed on a
+  dimension nobody measured (`None` means unmeasured, never zero); `MERGE` comes
+  from overlap across the portfolio. `report()` opens with **`n=1. This is not a
+  portfolio yet`** whenever there are fewer than two assets.
+- `engine/src/omnex/factory/feedback.py` — runs, compiler results and portfolio
+  decisions become one stream `harness.meta.diagnose()` reads, and an accepted
+  improvement writes back a node claim. **That claim is always `proposed` and
+  there is no parameter that makes it `implemented`** — the thing producing the
+  evidence does not grade it. A zero-cost observation is refused: cost per
+  accepted change falls toward zero the more of them a loop emits, and that is
+  the one number the outer loop cannot afford to have gamed.
+  `test_the_chain_runs_from_spec_to_an_observation_the_outer_loop_accepts` walks
+  the whole thing in one pass, so a decorative link fails.
 - `skills/` — five packaged skills, each carrying its measured number
 - `intel/` — committed scan snapshots and reports
 - `oss/citegate/` — standalone, dependency-free citation checker

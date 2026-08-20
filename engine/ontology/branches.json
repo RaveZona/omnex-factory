@@ -557,7 +557,7 @@
       ],
       "measured_by": null,
       "missing": [
-        "per-run economics attached to a compiled agent: revenue minus model, tool, infra and review cost, per request and per customer"
+        "the chain wired to a live paying surface — the machinery runs end to end in tests, and module N+1 does not open until module N has taken a payment"
       ],
       "note": "The pieces exist — planning, proposals, rubrics, isolated workspaces, a fleet that refuses overlapping paths — and omnex.factory makes the gate order a TYPE rather than a diagram, with worth_it at its head and a spec fingerprinted against a harness.Contract. A spec now COMPILES to three targets through one neutral blueprint, each required to re-read its own output: parse(emit(bp)) == bp, checked across five paradigms, and the check is itself tested by breaking an emitter on purpose. What is still missing is money attached to a run rather than to a spreadsheet.",
       "worth_it": {
@@ -645,20 +645,25 @@
       "name": "Revenue Engine",
       "claim": "implemented",
       "modules": [
-        "omnex.intel"
+        "omnex.intel",
+        "omnex.factory"
       ],
       "symbols": [
         "omnex.intel.BusinessModel",
         "omnex.intel.Opportunity",
         "omnex.intel.Complexity",
-        "omnex.core.Money"
+        "omnex.core.Money",
+        "omnex.factory.AgentEconomics",
+        "omnex.factory.RunCost",
+        "omnex.factory.Margin"
       ],
       "tests": [
-        "tests/test_intel.py"
+        "tests/test_intel.py",
+        "tests/test_economics.py"
       ],
       "measured_by": null,
       "missing": [],
-      "note": "Opportunities priced in exact pico-dollar Money and ranked by payback. Revenue models are enumerated as types, not as prose.",
+      "note": "Opportunities priced in exact pico-dollar Money and ranked by payback. Revenue models are enumerated as types, not as prose. Money is now attached to a RUN rather than to a spreadsheet: revenue less model, tool, infra, storage and review cost, per run, per agent, per customer, in exact picos. Acquisition is deliberately NOT subtracted per run — charging it that way makes a customer look worse the more they use the product — and is answered by payback_runs() instead. Failed runs are costed and counted, or the cheapest agent is one that fails everything.",
       "worth_it": null,
       "source": "proposal"
     },
@@ -689,23 +694,38 @@
     {
       "id": "XXVI",
       "name": "Agent Portfolio",
-      "claim": "implemented",
+      "claim": "partial",
       "modules": [
-        "omnex.intel"
+        "omnex.intel",
+        "omnex.factory"
       ],
       "symbols": [
         "omnex.intel.Portfolio",
         "omnex.intel.Score",
         "omnex.intel.Assessment",
-        "omnex.intel.DomainVerdict"
+        "omnex.intel.DomainVerdict",
+        "omnex.factory.Portfolio",
+        "omnex.factory.Asset",
+        "omnex.factory.Decision"
       ],
       "tests": [
-        "tests/test_intel.py"
+        "tests/test_intel.py",
+        "tests/test_portfolio.py"
       ],
       "measured_by": null,
-      "missing": [],
-      "note": "Opportunity and threat scored on two axes that are never blended into one number. Applied to one live module it is n=1 — the code is not the constraint here, customers are.",
-      "worth_it": null,
+      "missing": [
+        "a second live module — the portfolio machinery is ready and n=1 is not a portfolio, which report() states on its own first line"
+      ],
+      "note": "Opportunity and threat scored on two axes that are never blended into one number. Applied to one live module it is n=1 — the code is not the constraint here, customers are. Live agents are now assets with one explicit decision each — scale, optimise, refactor, merge, reposition, license, kill — and recommend() proposes while only enact() records a person's name against it. Three refusals: too few runs is WATCH, nothing is killed on a dimension nobody measured, and MERGE comes from overlap across the portfolio because it cannot be decided about one asset alone.",
+      "worth_it": {
+        "repeats_weekly": false,
+        "verification_is_automated": false,
+        "budget_absorbs_waste": true,
+        "agent_has_tools": true,
+        "has_goal_metric": false,
+        "has_change_method": true,
+        "has_standard_assessment": false
+      },
       "source": "proposal"
     },
     {
@@ -713,21 +733,26 @@
       "name": "Autonomous Self-Improvement",
       "claim": "implemented",
       "modules": [
-        "omnex.harness"
+        "omnex.harness",
+        "omnex.factory"
       ],
       "symbols": [
         "omnex.harness.Health",
         "omnex.harness.Diagnosis",
         "omnex.harness.Intervention",
         "omnex.harness.diagnose",
-        "omnex.harness.mean_cost_per_accepted"
+        "omnex.harness.mean_cost_per_accepted",
+        "omnex.factory.Observation",
+        "omnex.factory.NodeClaim",
+        "omnex.factory.to_run_state"
       ],
       "tests": [
-        "tests/test_harness.py"
+        "tests/test_harness.py",
+        "tests/test_feedback.py"
       ],
       "measured_by": null,
       "missing": [],
-      "note": "The outer loop watches cost per accepted change, not score. A loop whose score creeps while cost per accepted change worsens is reported stuck rather than improving, and it may never weaken a frozen criterion.",
+      "note": "The outer loop watches cost per accepted change, not score. A loop whose score creeps while cost per accepted change worsens is reported stuck rather than improving, and it may never weaken a frozen criterion. The loop now closes: runs, compiler results and portfolio decisions become one observation stream diagnose() reads, and an accepted improvement writes back a node claim. That claim is always 'proposed' and there is no parameter that makes it 'implemented' — the thing producing the evidence does not grade it. A zero-cost observation is refused, because cost per accepted change falls toward zero the more of them a loop emits.",
       "worth_it": null,
       "source": "proposal"
     },

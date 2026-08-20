@@ -25,17 +25,35 @@ when the margin turns out negative.
 before anything that costs something.
 """
 
+from .economics import MINIMUM_RUNS, AgentEconomics, Margin, Run, RunCost
+from .feedback import NodeClaim, Observation, Source, claim, observe, to_run_state
 from .gates import Gate, Pipeline, Stage, start
+from .portfolio import Asset, Decision, Portfolio, Recommendation
 from .spec import AgentSpec, Capability, CostModel, Paradigm, Tool
 
 __all__ = [
+    "MINIMUM_RUNS",
+    "AgentEconomics",
     "AgentSpec",
+    "Asset",
     "Capability",
     "CostModel",
+    "Decision",
     "Gate",
+    "Margin",
+    "NodeClaim",
+    "Observation",
     "Paradigm",
     "Pipeline",
+    "Portfolio",
+    "Recommendation",
+    "Run",
+    "RunCost",
+    "Source",
     "Stage",
     "Tool",
+    "claim",
+    "observe",
     "start",
+    "to_run_state",
 ]
