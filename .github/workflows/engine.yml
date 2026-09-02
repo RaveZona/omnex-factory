@@ -70,6 +70,13 @@ jobs:
       - name: Types
         run: uv run mypy
 
+      - name: Invariants
+        # The repository's own rules, as predicates. Exits non-zero on any
+        # breach, and on any rule in `ontology/invariants.json` that has neither
+        # a checker nor a written reason one is impossible — which is what stops
+        # the registry becoming a second copy of CLAUDE.md.
+        run: uv run python scripts/invariant_map.py
+
       - name: Tests
         run: uv run pytest tests/ -q
 

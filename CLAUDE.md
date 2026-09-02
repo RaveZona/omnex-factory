@@ -14,6 +14,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 .venv/bin/ruff check src tests scripts \
   && .venv/bin/ruff format --check src tests scripts \
   && .venv/bin/mypy \
+  && .venv/bin/python scripts/invariant_map.py \
   && .venv/bin/python -m pytest tests/ -q
 
 # citegate — from oss/citegate/
@@ -33,7 +34,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **911 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **934 engine tests · 68 TypeScript · 16 citegate**, all green.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
@@ -56,20 +57,41 @@ All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ### Non-obvious invariants — breaking these is silent
 
+**These are now checked, not asserted.** Each id below is an entry in
+`engine/ontology/invariants.json` with a predicate behind it;
+`scripts/invariant_map.py` runs them all and exits non-zero on any breach. Two
+of the five defects found in the audit that produced this section were direct
+violations of rules written right here, greppable in minutes, sitting untouched
+because nothing grepped. A rule that is not in a gate decays at that rate.
+
 - **Money is `int` pico-dollars (1e-12 USD).** Micro-dollars round cheap-model
   tokens to zero, so a router that saves money reports saving nothing. Never
-  introduce a float currency path.
+  introduce a float currency path. → `money_is_int_picos`
 - **Time comes from an injected `Clock`.** Nothing calls `datetime.now()` or
   `time.monotonic()` directly. `FakeClock` is why the suite asserts on hour-long
-  TTLs and still runs in 7 seconds.
+  TTLs and still runs in 7 seconds. → `time_is_injected` (two allowlisted files,
+  each naming the parameter that already provides injection)
 - **Zero required dependencies.** Heavy libraries (torch, transformers, pdf) sit
   behind Protocol adapters and are optional extras. A test must not need them.
+  → `zero_required_dependencies`
 - **`StrEnum` inherits `str` comparisons**, so `@total_ordering` fills in
   nothing. Any ordered `StrEnum` (e.g. `Tier`) must define all four comparisons
-  explicitly.
+  explicitly. → `ordered_strenum_writes_all_four`
+- **Symbol resolution has one implementation**, in `omnex.core.symbols`,
+  imported by everything that asks whether a name exists.
+  → `one_symbol_resolver`
+- **The two sentence splitters must agree.** They are separate copies on purpose
+  and have diverged twice. → `twin_splitters_agree`
 - **A stated limitation is kept as a passing test.** `test_a_paraphrase_outside_
   the_corpus_is_missed` and the inverted-polarity grounding test are *supposed*
   to be green. Do not "fix" them; they are the honesty anchors.
+  → `limitations_are_passing_tests`, declared **unenforceable**: a checker keying
+  on test names would be satisfied by renaming one.
+- **Refusals name every failing condition at once**, not the first.
+  → `refusals_name_every_condition`, declared **unenforceable**.
+- **Docstrings explain why and name the failure prevented.**
+  → `docstrings_name_the_failure`, declared **unenforceable**: any mechanical
+  proxy turns a convention into a quota.
 - **Suite fingerprints refuse cross-suite comparison.** Editing an expected
   answer and re-running is otherwise indistinguishable from an improvement.
 
@@ -106,6 +128,15 @@ All 68 TypeScript tests now run in CI; until this commit, seven of them did.
   document. A map of an assumed list can confirm every entry on it and still be
   missing the field — v1 said 10 gaps against 28 assumed branches, and reading
   one corpus added 10 more.
+- `engine/ontology/invariants.json` — **this repository's own rules, as
+  predicates.** What `ontology_map.py` does for branches, one level in:
+  `scripts/invariant_map.py` runs every checker, renders `INVARIANTS.md`, and
+  exits non-zero on a breach. **A rule with no checker AND no written reason one
+  is impossible fails the script** — the mechanism that stops the registry
+  becoming a second copy of this file. Currently **6 of 9 enforced**, 3 declared
+  unenforceable with reasons, 2 allowlisted exceptions that each name a working
+  injection point. Each bullet in "Non-obvious invariants" above cites its id,
+  and a test requires that link in both directions.
 - `engine/ontology/nodes.json` — all **507 nodes** against exported symbols.
   Three claims: `gap` (no candidate), `proposed` (an alias that imports,
   unconfirmed), `implemented` (**a person agreed**). A machine proposes and
