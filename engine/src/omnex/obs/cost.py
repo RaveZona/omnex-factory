@@ -26,6 +26,7 @@ All arithmetic is exact `Money`. See core/money.py for why that is not fussiness
 
 from __future__ import annotations
 
+import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -95,6 +96,20 @@ class CostLedger:
     """
 
     def __init__(self) -> None:
+        # One lock over every mutation, matching `obs/metrics.py`, which already
+        # had one while this file — the ledger money actually lands in — did not.
+        #
+        # `self._total = self._total + event.cost` is read-modify-write on three
+        # separate attributes plus five dictionaries. Two threads recording
+        # concurrently lose an event silently: no exception, no gap in a
+        # sequence, just a total that is lower than the sum of what happened.
+        # Cost figures that are quietly low are worse than missing ones, because
+        # they get believed.
+        #
+        # Coarse rather than per-field on purpose. A finer lock would let a
+        # reader see `_events` incremented before `_total` moved, which is a
+        # ledger that briefly disagrees with itself.
+        self._lock = threading.Lock()
         self._total = Money.zero()
         self._undiscounted = Money.zero()
         self._events = 0
@@ -107,23 +122,25 @@ class CostLedger:
         self._tokens: dict[str, int] = defaultdict(int)
 
     def record(self, event: CostEvent) -> None:
-        self._total = self._total + event.cost
-        self._undiscounted = self._undiscounted + event.undiscounted
-        self._events += 1
-        self._by_model[event.model].append(event.cost)
-        self._undiscounted_by_model[event.model] = (
-            self._undiscounted_by_model[event.model] + event.undiscounted
-        )
-        if event.tenant_id:
-            self._by_tenant[event.tenant_id] = self._by_tenant[event.tenant_id] + event.cost
-        if event.route:
-            self._by_route[event.route] = self._by_route[event.route] + event.cost
-        self._per_request_by_trace[event.trace_id] = (
-            self._per_request_by_trace[event.trace_id] + event.cost
-        )
-        self._tokens["input"] += event.input_tokens
-        self._tokens["output"] += event.output_tokens
-        self._tokens["cached_input"] += event.cached_input_tokens
+        """One event, recorded atomically across every aggregate it touches."""
+        with self._lock:
+            self._total = self._total + event.cost
+            self._undiscounted = self._undiscounted + event.undiscounted
+            self._events += 1
+            self._by_model[event.model].append(event.cost)
+            self._undiscounted_by_model[event.model] = (
+                self._undiscounted_by_model[event.model] + event.undiscounted
+            )
+            if event.tenant_id:
+                self._by_tenant[event.tenant_id] = self._by_tenant[event.tenant_id] + event.cost
+            if event.route:
+                self._by_route[event.route] = self._by_route[event.route] + event.cost
+            self._per_request_by_trace[event.trace_id] = (
+                self._per_request_by_trace[event.trace_id] + event.cost
+            )
+            self._tokens["input"] += event.input_tokens
+            self._tokens["output"] += event.output_tokens
+            self._tokens["cached_input"] += event.cached_input_tokens
 
     def seal_request(self, trace_id: str) -> Money:
         """Close out one request and fold its total into the per-request distribution.
@@ -134,8 +151,9 @@ class CostLedger:
         twelve cheap calls would look twelve times cheaper than a single
         expensive one it actually outspent.
         """
-        total = self._per_request_by_trace.pop(trace_id, Money.zero())
-        self._per_request.observe_units(total.picos)
+        with self._lock:
+            total = self._per_request_by_trace.pop(trace_id, Money.zero())
+            self._per_request.observe_units(total.picos)
         return total
 
     def record_trace(self, trace: Trace, tenant_id: str = "", route: str = "") -> Money:

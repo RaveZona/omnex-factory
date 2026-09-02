@@ -60,6 +60,18 @@ class HybridStore:
 
     The reference implementation: every other backend is checked against this
     one's behaviour, and it is what the tests for P1 retrieve through.
+
+    **Single-writer. Not thread-safe, on purpose.** Indexing mutates the posting
+    lists and the vector table together, and guarding that would put a lock on
+    the read path of a retriever whose whole point is speed. Index from one
+    thread, or index into a fresh store and swap the reference — an atomic
+    rebind, which is cheaper than a lock and is how a search index is usually
+    updated anyway.
+
+    Stated here rather than discovered in production. `obs.CostLedger` and
+    `factory.AgentEconomics` ARE locked, because losing an event there loses
+    money; losing a concurrent write here loses a document, which a re-index
+    restores.
     """
 
     embedder: Embedder

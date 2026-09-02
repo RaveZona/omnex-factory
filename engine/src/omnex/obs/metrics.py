@@ -106,14 +106,32 @@ class Counter:
         self._lock = threading.Lock()
 
     def inc(self, amount: float = 1.0, **labels: str) -> None:
+        """Add to a series, staying EXACT while every increment is an integer.
+
+        The accumulator starts at integer zero rather than `0.0`, which is the
+        whole fix and is easy to miss. Python integers are arbitrary precision,
+        so a counter fed only integers is exact forever; one that ever sees a
+        float becomes a float and stays one, losing exactness above 2**53.
+
+        That mattered here in the worst place. `trace.py` used to record cost as
+        `float(span.cost.picos)`, and 2**53 picos is $9,007.20 — a cumulative
+        counter, so it was not a question of whether it would arrive. A cost
+        number that silently stops being exact is the failure `core/money.py`
+        exists to prevent, and it had reappeared in the metrics export where
+        nobody looks.
+
+        The honest limit: what Prometheus's own storage does with the value
+        afterwards is float64 and outside this process. This stops us
+        MANUFACTURING the loss; it cannot stop theirs.
+        """
         if amount < 0:
             raise ValueError("a counter cannot decrease")
         key = self._series.key(labels, self.values)
         with self._lock:
-            self.values[key] = self.values.get(key, 0.0) + amount
+            self.values[key] = self.values.get(key, 0) + amount
 
     def value(self, **labels: str) -> float:
-        return self.values.get(_normalise(self.label_names, labels), 0.0)
+        return self.values.get(_normalise(self.label_names, labels), 0)
 
     @property
     def total(self) -> float:
@@ -345,6 +363,14 @@ def _escape(value: str) -> str:
 
 
 def _num(value: float) -> str:
+    """Render a metric value without inventing or losing digits.
+
+    The `< 1e15` guard is about FLOATS, where `int(value)` past that point is
+    already a rounded number and printing it as an integer would assert a
+    precision nobody has. A genuine `int` falls through to `repr`, which prints
+    every digit exactly — which is what a pico-dollar counter needs, and why
+    `Counter.inc` keeps integer series integral.
+    """
     if value == int(value) and abs(value) < 1e15:
         return str(int(value))
     return repr(value)

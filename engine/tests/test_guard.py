@@ -569,3 +569,35 @@ def test_the_sandbox_documents_that_it_is_not_a_security_boundary():
     prose = re.sub(r"\s+", " ", module.__doc__ or "")
     assert "not a security boundary" in prose
     assert "gVisor" in prose or "Firecracker" in prose  # and says what to use instead
+
+
+def test_the_sandbox_measures_duration_on_an_injected_clock():
+    """The Clock invariant, which this module had been quietly breaking.
+
+    `run_python` read `time.monotonic()` directly — the one thing CLAUDE.md says
+    nothing in this package does. The cost was not abstract: `duration_seconds`
+    could not be asserted on by any test, so the field went unchecked.
+
+    The two halves of "how long did this take" have different owners and the
+    split is deliberate. The KILL stays with the operating system, because a
+    FakeClock cannot interrupt a real child process. The MEASUREMENT is ours.
+    """
+    from omnex.core.clock import FakeClock
+
+    clock = FakeClock()
+    result = run_python("print('ok')", clock=clock)
+    assert result.ok
+    # A FakeClock does not advance on its own, so the measurement is exactly the
+    # clock's opinion rather than the wall clock's — which is the property that
+    # makes the field testable at all.
+    assert result.duration_seconds == 0.0
+
+    clock.advance(2.5)
+    assert clock.monotonic() == 2.5
+
+
+def test_the_real_clock_still_measures_real_time():
+    """The injected clock must not turn the default into a stopped one."""
+    result = run_python("import time; time.sleep(0.05); print('done')")
+    assert result.ok
+    assert result.duration_seconds > 0.0

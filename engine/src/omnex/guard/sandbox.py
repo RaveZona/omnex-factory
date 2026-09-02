@@ -37,6 +37,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..core.clock import Clock, SystemClock
+
 __all__ = ["SandboxPolicy", "SandboxResult", "run_python"]
 
 
@@ -94,16 +96,34 @@ def _apply_limits(policy: SandboxPolicy) -> None:  # pragma: no cover - runs in 
     os.setsid()  # own process group, so the timeout kill takes the children too
 
 
-def run_python(code: str, policy: SandboxPolicy | None = None) -> SandboxResult:
-    """Execute `code` in a limited subprocess. Never raises on program failure."""
+def run_python(
+    code: str, policy: SandboxPolicy | None = None, clock: Clock | None = None
+) -> SandboxResult:
+    """Execute `code` in a limited subprocess. Never raises on program failure.
+
+    `clock` measures the duration and nothing else. The two halves of "how long
+    did this take" belong to different owners and conflating them is what made
+    this function untestable:
+
+    - The **kill** is `subprocess.run(timeout=...)`, and it stays with the
+      operating system. A `FakeClock` cannot interrupt a real child process, and
+      wiring one in would produce a timeout that fires only after the thing it
+      was meant to bound has already returned. Same argument as
+      `mcp.transport.StreamTransport`, which accepts a timeout it does not
+      enforce and says so.
+    - The **measurement** is ours, and it was reading `time.monotonic()`
+      directly — the one thing `CLAUDE.md` says nothing in this package does.
+      The cost was not abstract: `duration_seconds` could not be asserted on,
+      so no test ever checked the field.
+    """
     policy = policy or SandboxPolicy()
-    import time
+    clock = clock or SystemClock()
 
     with tempfile.TemporaryDirectory(prefix="omnex-sandbox-") as workdir:
         script = Path(workdir) / "main.py"
         script.write_text(code)
 
-        started = time.monotonic()
+        started = clock.monotonic()
         # A near-empty environment. Inheriting the parent's is how an API key
         # reaches code the model wrote.
         env = {"PATH": "/usr/bin:/bin", "HOME": workdir, "TMPDIR": workdir, "PYTHONNOUSERSITE": "1"}
@@ -125,11 +145,11 @@ def run_python(code: str, policy: SandboxPolicy | None = None) -> SandboxResult:
                 stdout=_truncate(_decode(exc.stdout), policy.max_output_bytes),
                 stderr=_truncate(_decode(exc.stderr), policy.max_output_bytes),
                 exit_code=None,
-                duration_seconds=time.monotonic() - started,
+                duration_seconds=clock.monotonic() - started,
                 terminated_reason="timeout",
             )
 
-        duration = time.monotonic() - started
+        duration = clock.monotonic() - started
         # A negative return code is a signal: -9 is the kernel OOM killer or an
         # rlimit, -24 is RLIMIT_CPU. Reported distinctly, because "your code was
         # killed for using too much memory" and "your code raised" need

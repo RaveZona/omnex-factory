@@ -597,3 +597,63 @@ def test_report_is_readable_and_states_the_savings():
     report = ledger.report()
     assert "saved" in report and "%" in report
     assert "p50" in report and "p99" in report
+
+
+def test_a_pico_dollar_counter_stays_exact_past_the_float_boundary():
+    """The float currency path that had reappeared in the metrics export.
+
+    `trace.py` recorded cost as `float(span.cost.picos)`. IEEE754 doubles hold
+    integers exactly only below 2**53, which is 9,007,199,254,740,992 picos —
+    $9,007.20. The cost counter is cumulative, so this was not a question of
+    whether it would arrive.
+
+    The failure is silent and one-directional: the counter keeps incrementing
+    and quietly stops being the number it reports. `core/money.py` exists to
+    prevent exactly this, and the rule had been re-broken somewhere nobody reads.
+    """
+    from omnex.obs.metrics import MetricsRegistry
+
+    registry = MetricsRegistry()
+    counter = registry.counter("omnex_cost_picodollars_total", "cost", ("model",))
+
+    boundary = 2**53
+    counter.inc(boundary, model="strong")
+    counter.inc(1, model="strong")
+    assert counter.value(model="strong") == boundary + 1
+
+    # The same two increments as floats cannot tell those apart, which is the
+    # whole point rather than a curiosity about this test.
+    assert float(boundary) + 1.0 == float(boundary)
+
+    rendered = registry.render()
+    assert str(boundary + 1) in rendered, "the exposition rounded an exact amount"
+
+
+def test_the_cost_counter_is_fed_integers_not_floats():
+    """Guarding the call site, not just the container.
+
+    An exact accumulator is undone by one `float()` at the point of use, and
+    that cast is the easiest thing in the world to reintroduce while "fixing a
+    type error".
+    """
+    from omnex.core.money import Money
+    from omnex.obs.metrics import MetricsRegistry
+
+    registry = MetricsRegistry()
+    clock = FakeClock()
+    tracer = Tracer(
+        clock=clock,
+        ids=IdFactory(clock=clock, rng=Random(7)),
+        registry=registry,
+        sampler=TailSampler(baseline_rate=1.0),
+    )
+    with tracer.trace("run"), tracer.span("call", kind="llm") as span:
+        span.cost = Money.from_picos(2**53 + 7)
+
+    counter = registry.counter("omnex_cost_picodollars_total", labels=("kind", "model"))
+    recorded = list(counter.values.values())
+    assert recorded, "the tracer recorded no cost"
+    assert all(isinstance(value, int) for value in recorded), (
+        f"cost reached the counter as a float: {recorded}"
+    )
+    assert counter.total == 2**53 + 7

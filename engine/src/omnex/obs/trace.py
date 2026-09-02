@@ -381,7 +381,11 @@ class Tracer:
             self._errors.inc(kind=span.kind, code=str(code))
         model = str(span.attributes.get("model", ""))
         if span.cost:
-            self._cost.inc(float(span.cost.picos), kind=span.kind, model=model)
+            # Picos as an integer, never `float(...)`. The cast that used to be
+            # here turned an exact amount into a float64 accumulator, and the
+            # cost counter is cumulative: past 2**53 picos — $9,007.20 — it
+            # stops being the number it reports.
+            self._cost.inc(span.cost.picos, kind=span.kind, model=model)
         if span.input_tokens:
             self._tokens.inc(span.input_tokens, model=model, direction="input")
         if span.output_tokens:

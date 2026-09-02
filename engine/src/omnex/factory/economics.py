@@ -41,6 +41,7 @@ a verdict is how somebody kills a working agent or keeps a losing one.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -189,25 +190,41 @@ class AgentEconomics:
     In-process and deliberately not a database, for the reason `obs.CostLedger`
     gives: this is the aggregate that feeds a decision, and the durable record is
     the per-tenant usage table written on the request path.
+
+    **Writes are thread-safe; reads are a snapshot.** `record()` and
+    `record_acquisition()` hold a lock. The query methods do not, so a summary
+    taken while runs are landing describes a consistent set of completed runs
+    and may not include one recorded a microsecond ago. That is the right
+    trade for a margin report and the wrong one for a billing invoice — which is
+    what the durable table above is for.
     """
 
     def __init__(self) -> None:
+        # Locked for the same reason `obs.CostLedger` is: this is a money
+        # aggregate mutated from wherever runs finish, and the duplicate check
+        # below is a check-then-act pair. Two threads recording the same
+        # `run_id` both find it absent, both append, and the refusal that exists
+        # precisely to stop double counting is the thing the race defeats.
+        self._lock = threading.Lock()
         self._runs: list[Run] = []
         self._acquisition: dict[str, Money] = {}
 
     # ── recording ─────────────────────────────────────────────────────────
     def record(self, run: Run) -> None:
-        if any(existing.run_id == run.run_id for existing in self._runs):
-            raise ValidationFailed(
-                f"run {run.run_id!r} is already recorded; counting one run twice "
-                "moves the margin in whichever direction that run happened to go",
-                run_id=run.run_id,
-            )
-        self._runs.append(run)
+        """Check and append under one lock, or the duplicate refusal is decorative."""
+        with self._lock:
+            if any(existing.run_id == run.run_id for existing in self._runs):
+                raise ValidationFailed(
+                    f"run {run.run_id!r} is already recorded; counting one run twice "
+                    "moves the margin in whichever direction that run happened to go",
+                    run_id=run.run_id,
+                )
+            self._runs.append(run)
 
     def record_acquisition(self, customer: str, cost: Money) -> None:
         """What it cost to win this customer. Charged once, never per run."""
-        self._acquisition[customer] = self._acquisition.get(customer, Money.zero()) + cost
+        with self._lock:
+            self._acquisition[customer] = self._acquisition.get(customer, Money.zero()) + cost
 
     @property
     def runs(self) -> tuple[Run, ...]:

@@ -48,7 +48,31 @@ _WORD = re.compile(r"[a-z0-9']+")
 #: ending in a citation never splits and one unsupported clause condemns every
 #: supported claim beside it.
 _SENTENCE = re.compile(r"(?<=[.!?\x00])\s+(?=[A-Z0-9\"'(\[])")
-_ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "vs.", "cf.", "no.", "fig.", "approx."}
+#: Personal titles are here because leaving them out was a real defect, not a
+#: theoretical one: "Mr. Lee and Ms. Park disagreed." split into four fragments,
+#: and a fragment is precisely what the grounding check cannot judge — "Mr."
+#: carries no claim and no citation, so it scores as an unsupported sentence and
+#: drags down the paragraph it was cut out of.
+#:
+#: This set must stay identical to the one in `omnex.rag.ingest`. The two
+#: splitters are independent copies on purpose — citegate ships with no
+#: dependencies — and they drifted HERE, in the data rather than in the code,
+#: which is why comparing the two functions found nothing.
+#: `engine/tests/test_citegate_parity.py` now runs both over one corpus and
+#: fails on any difference.
+_ABBREVIATIONS = {
+    "e.g.",
+    "i.e.",
+    "etc.",
+    "vs.",
+    "cf.",
+    "no.",
+    "fig.",
+    "approx.",
+    "dr.",
+    "mr.",
+    "ms.",
+}
 #: Citations are masked before splitting: "…twenty. [p. 12]" otherwise splits
 #: twice, once detaching the citation and once INSIDE it ("[p." / "12]"), and
 #: either makes a correctly-cited claim read as uncited.

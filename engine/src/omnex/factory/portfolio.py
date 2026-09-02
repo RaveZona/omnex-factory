@@ -124,7 +124,17 @@ class Recommendation:
 
 
 class Portfolio:
-    """Live agents, their measurements, and the decision standing against each."""
+    """Live agents, their measurements, and the decision standing against each.
+
+    **Single-writer. Not thread-safe, on purpose.** `add()` and `enact()` are
+    things a person does, one at a time, from a review — not a request path. A
+    lock here would be ceremony around an operation that has never had a second
+    caller, and the honest limit costs less than the machinery.
+
+    The distinction against `AgentEconomics`, which this reads and which IS
+    locked: runs land from wherever work finishes, concurrently and often.
+    Decisions land from a meeting.
+    """
 
     def __init__(self, economics: AgentEconomics) -> None:
         self._economics = economics

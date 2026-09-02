@@ -33,7 +33,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **893 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **911 engine tests · 68 TypeScript · 16 citegate**, all green.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
@@ -212,6 +212,19 @@ All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 ## Lab notes — mistakes already paid for, do not repeat
 
 - `ruff check` passing does not mean `ruff format --check` passes. Run both.
+- **A concurrency test written the obvious way passes without the lock.** At
+  CPython's default 5ms switch interval, eight threads rarely interleave inside
+  a short critical section, so the first version of `test_concurrency.py` was
+  green against an unguarded `CostLedger` and proved nothing.
+  `sys.setswitchinterval(1e-9)` plus 16×400 makes it unmistakable: the unlocked
+  ledger reports **the right event count and half the money** ($0.29 of $0.64).
+  The GIL narrows this window; it does not close it, and free-threaded CPython
+  removes it.
+- **Twins can diverge in their DATA while their code stays identical.** The two
+  splitters were line-for-line equivalent and the engine's `_ABBREVIATIONS` had
+  quietly grown by `dr.`/`mr.`/`ms.`, so citegate split "Mr. Lee and Ms. Park
+  disagreed." into four fragments. Comparing the functions found nothing; only
+  `test_citegate_parity.py`, running both over one corpus, did.
 - **Symbol resolution lives in `omnex.core.symbols`, imported by everything.**
   `ontology_map.py`, `node_map.py` and `omnex.factory` all ask "does this name
   exist"; the splitter lesson below is what a second copy costs.
