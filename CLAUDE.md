@@ -15,7 +15,8 @@ npx tsc --noEmit && npx vitest run && npx next build
   && .venv/bin/ruff format --check src tests scripts \
   && .venv/bin/mypy \
   && .venv/bin/python scripts/invariant_map.py \
-  && .venv/bin/python -m pytest tests/ -q
+  && .venv/bin/python -m pytest tests/ -q \
+  && .venv/bin/python scripts/mutate.py
 
 # citegate — from oss/citegate/
 ../../engine/.venv/bin/python -m pytest tests/ -q
@@ -34,7 +35,8 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **934 engine tests · 68 TypeScript · 16 citegate**, all green.
+Current state: **940 engine tests · 68 TypeScript · 16 citegate**, all green,
+plus **12 of 12 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
@@ -137,6 +139,15 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   unenforceable with reasons, 2 allowlisted exceptions that each name a working
   injection point. Each bullet in "Non-obvious invariants" above cites its id,
   and a test requires that link in both directions.
+- `engine/scripts/mutate.py` — **the honest answer to "how many bugs".** There
+  is no integer for that. There is a measurable one for *how much of this is
+  actually held by its tests*: twelve hand-written mutations against rules the
+  repo has already paid for, each naming the test that must go red. Currently
+  **12 of 12 killed**. On its first run it was 11 — the survivor showed that
+  `Run.margin` and `_summarise`'s total were independent paths that happened to
+  agree, so changing one moved the median, p10 and worst while the total and the
+  verdict stayed put. No dependency, no coverage threshold: a coverage gate
+  invites padding, which is the Goodhart the whole `harness` is built against.
 - `engine/ontology/nodes.json` — all **507 nodes** against exported symbols.
   Three claims: `gap` (no candidate), `proposed` (an alias that imports,
   unconfirmed), `implemented` (**a person agreed**). A machine proposes and

@@ -80,6 +80,18 @@ jobs:
       - name: Tests
         run: uv run pytest tests/ -q
 
+      - name: Mutation probe
+        # Breaks each load-bearing rule on purpose and requires a test to go
+        # red. A green suite is evidence of nothing until breaking the code
+        # breaks it, and this is the number that answers "how much of this is
+        # actually held" — which is the honest version of "how many bugs".
+        #
+        # Its own step, and only on one interpreter: twelve mutations each
+        # spawning a pytest is time worth spending once per push, not three
+        # times.
+        if: matrix.python == '3.12'
+        run: uv run python scripts/mutate.py
+
       - name: Confirm the suite needs no credentials
         # The claim above is worth enforcing rather than trusting. Running with
         # the environment stripped catches the first test that quietly starts

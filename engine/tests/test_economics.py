@@ -240,3 +240,37 @@ def test_the_report_names_the_lever() -> None:
 def test_an_empty_ledger_reports_nothing_rather_than_zero_margin() -> None:
     """Zero margin on no runs reads as a break-even agent, and there is no agent."""
     assert AgentEconomics().report() == "no runs recorded"
+
+
+def test_the_distribution_and_the_total_come_from_one_definition_of_margin() -> None:
+    """Found by `scripts/mutate.py`, which is the only reason it exists.
+
+    `Run.margin` is revenue less variable cost. `_summarise` computes the total
+    by summing revenue and cost SEPARATELY and subtracting once — a different
+    code path that happens to agree. Nothing asserted that it must.
+
+    A mutation changing `Run.margin` therefore survived the whole suite: the
+    total and the verdict were unaffected, and only the median, p10 and worst
+    quietly moved. A summary whose distribution disagrees with its own total is
+    exactly the kind of wrong that reads as fine, since each number is
+    individually plausible.
+    """
+    economics = AgentEconomics()
+    revenues = ["0.010", "0.030", "0.007", "0.250", "0.001"]
+    for index, revenue in enumerate(revenues):
+        economics.record(
+            _run(
+                index,
+                revenue=Money.from_usd(revenue),
+                cost=RunCost(model=Money.from_usd("0.002"), tools=Money.from_usd("0.0005")),
+            )
+        )
+
+    summary = economics.overall()
+    from_runs = Money.zero()
+    for run in economics.runs:
+        from_runs = from_runs + run.margin
+
+    assert summary.total == from_runs, "the total and the per-run margins disagree"
+    assert summary.worst == min((run.margin for run in economics.runs), key=lambda m: m.picos)
+    assert summary.mean.picos == from_runs.picos // len(revenues)
