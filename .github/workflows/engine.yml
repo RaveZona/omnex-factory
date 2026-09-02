@@ -56,10 +56,16 @@ jobs:
         run: uv venv --python ${{ matrix.python }} && uv pip install -e '.[dev]'
 
       - name: Lint
-        run: uv run ruff check src tests
+        # `scripts` included: it is 4,700 lines of ontology and corpus tooling
+        # that the test suite imports directly (pythonpath puts it on the path),
+        # so leaving it out lints less than the suite actually runs.
+        run: uv run ruff check src tests scripts
 
       - name: Format
-        run: uv run ruff format --check src tests
+        # The lesson from 01c73c8 is that `ruff check` passing does not mean
+        # `ruff format --check` passes. It was only half-applied: this line ran
+        # on two of the three directories the previous one checked.
+        run: uv run ruff format --check src tests scripts
 
       - name: Types
         run: uv run mypy

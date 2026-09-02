@@ -12,7 +12,7 @@ npx tsc --noEmit && npx vitest run && npx next build
 
 # Python — from engine/
 .venv/bin/ruff check src tests scripts \
-  && .venv/bin/ruff format --check src tests \
+  && .venv/bin/ruff format --check src tests scripts \
   && .venv/bin/mypy \
   && .venv/bin/python -m pytest tests/ -q
 
@@ -24,7 +24,17 @@ npx tsc --noEmit && npx vitest run && npx next build
 red at `01c73c8`; `ruff check` passes on code `ruff format` would rewrite. CI
 (`.github/workflows/engine.yml`) runs it on Python 3.11, 3.12 and 3.13.
 
-Current state: **886 engine tests · 68 TypeScript · 16 citegate**, all green.
+**This block is not documentation, it is an assertion.**
+`engine/tests/test_ci_contract.py` reads it and requires CI to be a superset of
+it. That test also catches the reverse failure, which had already happened: CI
+ran `vitest run` against two hand-named files, one of which did not exist, so it
+covered one suite of seven. Note its boundary honestly — it compares this block
+with CI and cannot see a rule that is weak on *both* sides. `ruff format --check`
+omitted `scripts` here and in CI, they agreed, and only reading them together
+with fresh eyes found it.
+
+Current state: **893 engine tests · 68 TypeScript · 16 citegate**, all green.
+All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
 
