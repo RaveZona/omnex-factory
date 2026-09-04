@@ -35,7 +35,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **962 engine tests · 68 TypeScript · 16 citegate**, all green,
+Current state: **973 engine tests · 68 TypeScript · 16 citegate**, all green,
 plus **12 of 12 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
@@ -154,6 +154,16 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   A bundle is measured against its members' **real** counts: the Vault promises
   170 and its packs promise 50+40+40+40 = 170, so promise-versus-promise agrees
   with itself while every pack is short.
+- `BUSINESS.md` + `engine/scripts/business_map.py` — **the same mechanism as
+  `INVARIANTS.md`, one level out.** Every figure derived: days since the first
+  commit in THIS repository (a repo cannot see the work before it, and a number
+  that quietly counts something else is worse than none), goods against the
+  promise, what is live, and the ask log. **A missing revenue log renders as "0
+  recorded, which is not 0 earned" — never €0.00.** It reads the repository and
+  cannot see Stripe, Supabase, Etsy or Lemon Squeezy, and says so in its own
+  last section; printing an unobservable as zero is the mistake `3766976`
+  already paid for. Today: **day 37, 80 commits, 80 of 170 images through QC,
+  0 listings live, 1 module enabled, no revenue log.**
 - `packs/build_pack.py` — QC-passed images → a file Etsy can deliver. Four
   ratios **cropped from the centre, never padded**: a background scene with bars
   is not publishable, so losing edge pixels is the correct loss here. The zip is
