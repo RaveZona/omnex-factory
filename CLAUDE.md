@@ -36,7 +36,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **1,024 engine tests · 68 TypeScript · 16 citegate**, all green,
+Current state: **1,038 engine tests · 68 TypeScript · 16 citegate**, all green,
 plus **15 of 15 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
@@ -149,6 +149,19 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   unenforceable with reasons, 2 allowlisted exceptions that each name a working
   injection point. Each bullet in "Non-obvious invariants" above cites its id,
   and a test requires that link in both directions.
+- `packs/publish.py` — **the last step before money: the request that creates a
+  listing.** It builds the request and, by default, does not send it. No
+  endpoint is written into this repository — the storefront API shapes were not
+  readable from the environment this was developed in, so `--send` requires
+  `OMNEX_LEMONSQUEEZY_URL` / `OMNEX_ETSY_URL` from the operator and refuses by
+  name without one. Five refusals, all reported **at once**: a pack that does not
+  cover its listing, no built archive, no price, an unconfigured credential, and
+  `--send` with no endpoint. A sixth guard is the `live` flag: publishing an
+  offer whose flag is still false needs `--force-draft`, because going live is a
+  person's decision and it is the one that starts `registry.ts`'s clock. Header
+  **names** travel in the request, never values, so `--dry-run` output cannot
+  leak a key. Price crosses as integer cents via `Decimal` — `float("19.99")*100`
+  is `1998.9999999999998`, and rounding rescues it rather than the type doing so.
 - `deploy/env.json` + `engine/scripts/env_check.py` — **which of the 28
   environment variables a deploy cannot run without, and why.** Almost all of
   them **fail closed**: `cron-auth` returns false when `CRON_SECRET` is unset,
