@@ -35,7 +35,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **953 engine tests · 68 TypeScript · 16 citegate**, all green,
+Current state: **962 engine tests · 68 TypeScript · 16 citegate**, all green,
 plus **12 of 12 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
@@ -154,6 +154,15 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   A bundle is measured against its members' **real** counts: the Vault promises
   170 and its packs promise 50+40+40+40 = 170, so promise-versus-promise agrees
   with itself while every pack is short.
+- `packs/build_pack.py` — QC-passed images → a file Etsy can deliver. Four
+  ratios **cropped from the centre, never padded**: a background scene with bars
+  is not publishable, so losing edge pixels is the correct loss here. The zip is
+  **deterministic** (fixed timestamps, sorted entries) so "is the file I uploaded
+  the file I built" is a hash rather than trust. Two refusal layers, and the
+  split is the point: CI can only compare the promise against the manifest,
+  while this — on the machine holding the files — also catches a manifest entry
+  with no image behind it. Pillow is imported inside the function, so the
+  assembly logic where every refusal lives is testable without it.
 - `engine/scripts/mutate.py` — **the honest answer to "how many bugs".** There
   is no integer for that. There is a measurable one for *how much of this is
   actually held by its tests*: twelve hand-written mutations against rules the
