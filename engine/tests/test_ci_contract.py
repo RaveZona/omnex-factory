@@ -192,6 +192,33 @@ def _ruff_directories(commands: list[str], subcommand: str) -> set[str]:
     return found
 
 
+def _gate_scripts(commands: list[str]) -> set[str]:
+    """Every `scripts/*.py` a command list runs, by basename."""
+    return {
+        Path(token).name
+        for command in commands
+        for part in command.split("&&")
+        for token in part.split()
+        if token.startswith("scripts/") and token.endswith(".py")
+    }
+
+
+def test_ci_runs_every_gate_script_the_document_names() -> None:
+    """The other half of the same drift, which the ruff check could not see.
+
+    `test_ci_covers_every_directory_the_documented_gate_covers` compares ruff's
+    directories, so a whole script added to the documented gate and not to CI
+    passed it untouched. That is the same failure one level up: a developer runs
+    the documented command, CI does not, and the document becomes advice again.
+    """
+    documented = _gate_scripts(_documented_gate())
+    assert documented, "CLAUDE.md's gate no longer runs any script"
+    in_ci = _gate_scripts([c for commands in _all_commands().values() for c in commands])
+    assert documented <= in_ci, (
+        f"CLAUDE.md's gate runs {sorted(documented - in_ci)} and CI does not"
+    )
+
+
 @pytest.mark.parametrize("subcommand", ["ruff check", "ruff format --check"])
 def test_ci_covers_every_directory_the_documented_gate_covers(subcommand: str) -> None:
     """The document was stricter than CI, which is the direction that hurts.

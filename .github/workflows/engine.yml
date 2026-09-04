@@ -17,10 +17,23 @@ on:
   push:
     branches: [master, main]
   pull_request:
+    # The engine's tests read outside engine/, and this filter has to say so or
+    # the gate silently does not run on the change that breaks it. `test_listing`
+    # reads packs/, `test_business_map` reads lib/modules/registry.ts,
+    # `test_env_check` reads every process.env in lib, app and components,
+    # `test_ci_contract` reads CLAUDE.md and these workflows, and the citegate
+    # parity test reads oss/.
     paths:
       - "engine/**"
-      - "deploy/observability/**"
-      - ".github/workflows/engine.yml"
+      - "deploy/**"
+      - "packs/**"
+      - "lib/**"
+      - "app/**"
+      - "components/**"
+      - "oss/**"
+      - "corpus/**"
+      - "CLAUDE.md"
+      - ".github/workflows/*.yml"
   workflow_dispatch:
 
 concurrency:
@@ -76,6 +89,14 @@ jobs:
         # a checker nor a written reason one is impossible — which is what stops
         # the registry becoming a second copy of CLAUDE.md.
         run: uv run python scripts/invariant_map.py
+
+      - name: Environment manifest
+        # Compares deploy/env.json with every `process.env` the app reads, in
+        # both directions. It does NOT look at this machine's environment: none
+        # of these are set in CI and a strict check here would be red on every
+        # run until people stopped reading it. `--runtime` is the operator's
+        # mode, on the host that is about to serve.
+        run: uv run python scripts/env_check.py
 
       - name: Tests
         run: uv run pytest tests/ -q

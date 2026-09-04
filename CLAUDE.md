@@ -15,6 +15,7 @@ npx tsc --noEmit && npx vitest run && npx next build
   && .venv/bin/ruff format --check src tests scripts \
   && .venv/bin/mypy \
   && .venv/bin/python scripts/invariant_map.py \
+  && .venv/bin/python scripts/env_check.py \
   && .venv/bin/python -m pytest tests/ -q \
   && .venv/bin/python scripts/mutate.py
 
@@ -35,7 +36,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **1,010 engine tests · 68 TypeScript · 16 citegate**, all green,
+Current state: **1,024 engine tests · 68 TypeScript · 16 citegate**, all green,
 plus **15 of 15 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
@@ -148,6 +149,20 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   unenforceable with reasons, 2 allowlisted exceptions that each name a working
   injection point. Each bullet in "Non-obvious invariants" above cites its id,
   and a test requires that link in both directions.
+- `deploy/env.json` + `engine/scripts/env_check.py` — **which of the 28
+  environment variables a deploy cannot run without, and why.** Almost all of
+  them **fail closed**: `cron-auth` returns false when `CRON_SECRET` is unset,
+  `isOwner` refuses below 16 characters, every Stripe route answers 503. Correct
+  direction, invisible failure — the site is up, the pages render, the feature is
+  never reachable. **7 required, 11 secret**, plus one `any_of` group ("an image
+  model"), because no single provider key can be required and Studio with none of
+  them is live, billable and unable to produce anything. Two modes: the default
+  compares the manifest with every `process.env` in the code **in both
+  directions** and never reads the environment (CI's mode, or it would be
+  permanently red); `--runtime` is the operator's, on the host about to serve.
+  **No value is ever printed** — a preflight that prints a key to a build log has
+  copied the secret, not checked it. The n8n side is *derived* from
+  `n8n_bindings.json` and deliberately not listed here.
 - `engine/ontology/n8n_bindings.json` + `engine/scripts/n8n_bindings_check.py` —
   **what an n8n node actually is, as data a person confirms.** Branch XI's
   `missing` field named the gap in words: without endpoint, method and credential
@@ -330,6 +345,15 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
 ## Lab notes — mistakes already paid for, do not repeat
 
 - `ruff check` passing does not mean `ruff format --check` passes. Run both.
+- **A workflow's `paths:` filter is part of its gate.** `engine.yml` triggered on
+  `engine/**` only, while the engine suite reads `packs/`, `lib/`, `app/`,
+  `components/`, `oss/`, `corpus/`, `CLAUDE.md` and the workflows themselves. A
+  change to any of those could not turn the job red, so the gate was green by not
+  running. Widened, and the filter now names each reason.
+- **`test_ci_contract` compared ruff's directories and nothing else.** A whole
+  script added to CLAUDE.md's gate block and not to CI passed it untouched —
+  which is the same drift it was built for, one level up.
+  `test_ci_runs_every_gate_script_the_document_names` closes that half.
 - **A catalogue entry is prose until something resolves it.** The first version
   of `n8n_bindings.json` shipped naming `python -m omnex.pipeline.verify_webhook`
   and `...seen_before`. Neither was a module. It passed every check written for
