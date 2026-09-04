@@ -10,6 +10,7 @@ most: proof that the assertion can fail.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -19,6 +20,7 @@ from omnex.factory import AgentSpec, Capability, CostModel, Paradigm, Tool
 from omnex.factory.compile import (
     Target,
     assert_round_trips,
+    bindings,
     code,
     mcp_topology,
     n8n,
@@ -54,6 +56,7 @@ def _spec(paradigm: Paradigm = Paradigm.REACT, **overrides: object) -> AgentSpec
 
 
 ALL_PARADIGMS = list(Paradigm)
+REPO = Path(__file__).resolve().parents[2]
 
 
 # ── the round trip, three targets by five paradigms ────────────────────────
@@ -97,8 +100,8 @@ def test_a_lost_edge_is_caught_too(monkeypatch: pytest.MonkeyPatch) -> None:
     blueprint = plan(_spec())
     original = n8n.emit
 
-    def lossy(bp: Blueprint) -> str:
-        payload = json.loads(original(bp))
+    def lossy(bp: Blueprint, *args: object, **kwargs: object) -> str:
+        payload = json.loads(original(bp, *args, **kwargs))  # type: ignore[arg-type]
         payload["meta"]["omnexEnds"] = []
         return json.dumps(payload)
 
@@ -299,3 +302,257 @@ def test_all_three_targets_agree_on_the_same_topology() -> None:
     results = [round_trip(blueprint, target) for target in Target]
     assert all(result.digest == blueprint.digest for result in results)
     assert len({result.digest for result in results}) == 1
+
+
+# ── bindings: the configuration a compiler may not invent ──────────────────
+def _catalogue(tmp_path: Path, payload: dict[str, object]) -> bindings.Catalogue:
+    path = tmp_path / "n8n_bindings.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return bindings.load(path)
+
+
+def _bound(tmp_path: Path, **overrides: object) -> bindings.Catalogue:
+    """A catalogue covering the tools `_spec()` declares."""
+    binding: dict[str, object] = {
+        "node_type": "http",
+        "credentials": {"httpHeaderAuth": "OMNEX_FX"},
+        "parameters": {"method": "POST", "url": "https://fx.invalid/convert"},
+    }
+    binding.update(overrides)
+    return _catalogue(
+        tmp_path,
+        {
+            "node_types": {
+                "http": {
+                    "type": "n8n-nodes-base.httpRequest",
+                    "type_version": 4.2,
+                    "calls_out": True,
+                }
+            },
+            "bindings": {"convert": dict(binding), "rates": dict(binding)},
+        },
+    )
+
+
+@pytest.mark.parametrize("paradigm", ALL_PARADIGMS)
+def test_a_bound_workflow_round_trips_exactly_like_an_unbound_one(
+    paradigm: Paradigm, tmp_path: Path
+) -> None:
+    """Binding changes what a node IS, never what the topology SAYS.
+
+    The property that makes these compilers is `parse(emit(bp)) == bp`. Real
+    node types and real parameters are the largest change the emitter has taken,
+    and if they cost the round trip they cost the only check that can see a lossy
+    emission at all.
+    """
+    assert_round_trips(plan(_spec(paradigm)), Target.N8N, _bound(tmp_path))
+
+
+def test_a_bound_step_stops_being_a_placeholder(tmp_path: Path) -> None:
+    payload = json.loads(n8n.emit(plan(_spec()), _bound(tmp_path)))
+    by_name = {node["name"]: node for node in payload["nodes"]}
+
+    bound = by_name["call_convert"]
+    assert bound["type"] == "n8n-nodes-base.httpRequest"
+    assert bound["typeVersion"] == 4.2
+    assert bound["parameters"]["url"] == "https://fx.invalid/convert"
+    assert bound["credentials"] == {"httpHeaderAuth": {"name": "OMNEX_FX"}}
+    assert "not confirmed by an import" in bound["notes"].lower()
+
+    unbound = by_name["think"]
+    assert unbound["type"] == "n8n-nodes-base.noOp"
+    assert "Placeholder" in unbound["notes"]
+
+
+def test_a_binding_cannot_shadow_the_reference_the_parser_reads_back(tmp_path: Path) -> None:
+    """The subtle way a catalogue could break the round trip in silence.
+
+    A parameter template is written by a person, and `omnexRef` is an ordinary
+    key. Shadowing it would emit a workflow that imports, lays out and reads back
+    as a DIFFERENT topology — the exact failure class the round trip exists for.
+    """
+    blueprint = plan(_spec())
+    catalogue = _bound(
+        tmp_path,
+        parameters={"url": "https://fx.invalid/convert", "omnexRef": "something else"},
+    )
+    payload = json.loads(n8n.emit(blueprint, catalogue))
+    node = next(n for n in payload["nodes"] if n["name"] == "call_convert")
+    assert node["parameters"]["omnexRef"] == "convert"
+    assert_round_trips(blueprint, Target.N8N, catalogue)
+
+
+def test_an_unconfirmed_binding_is_refused_where_it_would_run_unattended(
+    tmp_path: Path,
+) -> None:
+    """Fine to import and read; not fine to schedule against a customer's money."""
+    blueprint = plan(_spec())
+    catalogue = _bound(tmp_path)
+    n8n.emit(blueprint, catalogue)  # building is allowed
+
+    with pytest.raises(ValidationFailed, match="confirmed by an import") as caught:
+        n8n.emit(blueprint, catalogue, require_confirmed=True)
+    assert caught.value.context["unconfirmed"] == ["convert", "rates"], (
+        "every unconfirmed reference must be named at once, not the first one"
+    )
+
+
+def test_a_binding_is_only_as_confirmed_as_the_node_type_under_it(tmp_path: Path) -> None:
+    """Confirming the entry while the type beneath it is unseen confirms nothing."""
+    catalogue = _catalogue(
+        tmp_path,
+        {
+            "node_types": {
+                "http": {"type": "n8n-nodes-base.httpRequest", "type_version": 4.2},
+            },
+            "bindings": {
+                "convert": {
+                    "node_type": "http",
+                    "parameters": {"url": "https://fx.invalid/convert"},
+                    "confirmed": True,
+                    "confirmed_by": "a person",
+                    "confirmed_at": "2026-09-04",
+                }
+            },
+        },
+    )
+    assert catalogue.bindings["convert"].confirmed is True
+    assert catalogue.is_confirmed("convert") is False
+
+
+def test_a_confirmation_with_nobody_behind_it_is_refused(tmp_path: Path) -> None:
+    """Machine proposes, person verifies — `nodes.json`'s rule, one level out."""
+    with pytest.raises(ValidationFailed, match="confirmed_by"):
+        _catalogue(
+            tmp_path,
+            {
+                "node_types": {"http": {"type": "n8n-nodes-base.httpRequest", "type_version": 4.2}},
+                "bindings": {
+                    "convert": {
+                        "node_type": "http",
+                        "parameters": {"url": "https://fx.invalid/x"},
+                        "confirmed": True,
+                    }
+                },
+            },
+        )
+
+
+def test_every_catalogue_problem_is_named_at_once(tmp_path: Path) -> None:
+    """Being refused one line at a time is how somebody concludes the check is the obstacle."""
+    with pytest.raises(ValidationFailed) as caught:
+        _catalogue(
+            tmp_path,
+            {
+                "node_types": {"http": {"type": "no-dots-here", "type_version": 4.2}},
+                "bindings": {
+                    "convert": {"node_type": "ghost", "parameters": {}},
+                    "rates": {"node_type": "http", "parameters": {}, "confirmed": True},
+                },
+            },
+        )
+    problems = caught.value.context["problems"]
+    assert len(problems) >= 4, problems
+    assert any("no-dots-here" in p for p in problems)
+    assert any("ghost" in p for p in problems)
+    assert any("confirmed_by" in p for p in problems)
+    assert any("confirmed_at" in p for p in problems)
+
+
+def test_a_credential_written_into_the_catalogue_is_refused(tmp_path: Path) -> None:
+    """A binding names a credential; it never holds one."""
+    with pytest.raises(ValidationFailed, match="API key prefix"):
+        _catalogue(
+            tmp_path,
+            {
+                "node_types": {"http": {"type": "n8n-nodes-base.httpRequest", "type_version": 4.2}},
+                "bindings": {
+                    "convert": {
+                        "node_type": "http",
+                        "parameters": {
+                            "url": "https://fx.invalid/x",
+                            "headerValue": "sk-live-9f2a4c8e1b7d",
+                        },
+                    }
+                },
+            },
+        )
+
+
+def test_a_secret_reaching_the_emitted_workflow_stops_it(tmp_path: Path) -> None:
+    """The second failure, which the load-time scan structurally cannot see.
+
+    The catalogue is one path into a node's parameters. A workflow JSON is
+    committed and shared, so the document itself is scanned before it is
+    returned — not the catalogue it was built from.
+    """
+    catalogue = _bound(tmp_path)
+    catalogue.bindings["convert"].parameters["headerValue"] = "Bearer aGVsbG90aGVyZTEyMzQ1"
+    with pytest.raises(ValidationFailed, match="bearer token"):
+        n8n.emit(plan(_spec()), catalogue)
+
+
+def test_a_network_node_with_no_address_must_say_why(tmp_path: Path) -> None:
+    """A half-binding is legitimate; an unexplained one gets an invented url."""
+    with pytest.raises(ValidationFailed, match="invents one"):
+        _catalogue(
+            tmp_path,
+            {
+                "node_types": {
+                    "http": {
+                        "type": "n8n-nodes-base.httpRequest",
+                        "type_version": 4.2,
+                        "calls_out": True,
+                    }
+                },
+                "bindings": {"convert": {"node_type": "http", "parameters": {"method": "POST"}}},
+            },
+        )
+    # The same entry with a note explaining the absence loads.
+    catalogue = _catalogue(
+        tmp_path,
+        {
+            "node_types": {
+                "http": {
+                    "type": "n8n-nodes-base.httpRequest",
+                    "type_version": 4.2,
+                    "calls_out": True,
+                }
+            },
+            "bindings": {
+                "convert": {
+                    "node_type": "http",
+                    "parameters": {"method": "POST"},
+                    "note": "endpoint not readable from this environment",
+                }
+            },
+        },
+    )
+    assert catalogue.bindings["convert"].parameters == {"method": "POST"}
+
+
+def test_an_unbound_reference_is_reported_rather_than_raised(tmp_path: Path) -> None:
+    """A part-filled catalogue is the normal state and must stay importable."""
+    blueprint = plan(_spec())
+    catalogue = _catalogue(
+        tmp_path,
+        {
+            "node_types": {"noop": {"type": "n8n-nodes-base.noOp", "type_version": 1}},
+            "bindings": {"convert": {"node_type": "noop", "parameters": {}}},
+        },
+    )
+    refs = [s.ref for s in blueprint.steps]
+    assert bindings.unbound_refs(refs, catalogue) == ["rates"]
+    assert json.loads(n8n.emit(blueprint, catalogue))["meta"]["omnexBound"] == ["convert"]
+
+
+# ── the catalogue this repository ships ────────────────────────────────────
+def test_the_committed_catalogue_loads_and_claims_nothing_it_cannot_show() -> None:
+    """`n8n_bindings.json` is data with a gate on it, like every other claim here."""
+    catalogue = bindings.load(REPO / "engine" / "ontology" / "n8n_bindings.json")
+    assert catalogue.bindings, "an empty catalogue is a checker with nothing to check"
+    for ref in catalogue.bindings:
+        assert not catalogue.is_confirmed(ref), (
+            f"{ref} claims an import nobody in this repository performed; if that "
+            "changed, this premise is stale and the count in the docstring is too"
+        )

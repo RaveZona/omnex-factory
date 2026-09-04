@@ -31,15 +31,20 @@ from enum import StrEnum
 
 from ...core.errors import ValidationFailed
 from ..spec import AgentSpec
-from . import code, mcp_topology, n8n
+from . import bindings, code, mcp_topology, n8n
+from .bindings import Binding, Catalogue, NodeType
 from .blueprint import Blueprint, Step, StepKind, plan
 
 __all__ = [
+    "Binding",
     "Blueprint",
+    "Catalogue",
+    "NodeType",
     "Step",
     "StepKind",
     "Target",
     "assert_round_trips",
+    "bindings",
     "code",
     "compile_spec",
     "mcp_topology",
@@ -55,32 +60,41 @@ class Target(StrEnum):
     N8N = "n8n"
 
 
-def compile_spec(spec: AgentSpec, target: Target) -> object:
-    """Compile to one named target. The caller chooses; nothing here defaults."""
+def compile_spec(spec: AgentSpec, target: Target, catalogue: Catalogue | None = None) -> object:
+    """Compile to one named target. The caller chooses; nothing here defaults.
+
+    `catalogue` binds n8n nodes to real node types and is ignored by the other
+    two targets, which have no such gap: the code target runs in this process and
+    the MCP manifest describes tools the host already owns.
+    """
     blueprint = plan(spec)
     if target is Target.CODE:
         return code.emit(blueprint)
     if target is Target.MCP:
         return mcp_topology.emit(blueprint)
-    return n8n.emit(blueprint)
+    return n8n.emit(blueprint, catalogue)
 
 
-def round_trip(blueprint: Blueprint, target: Target) -> Blueprint:
+def round_trip(
+    blueprint: Blueprint, target: Target, catalogue: Catalogue | None = None
+) -> Blueprint:
     """Emit and read straight back, through the real emitter and the real parser."""
     if target is Target.CODE:
         return code.parse(code.emit(blueprint), blueprint)
     if target is Target.MCP:
         return mcp_topology.parse(mcp_topology.emit(blueprint))
-    return n8n.parse(n8n.emit(blueprint))
+    return n8n.parse(n8n.emit(blueprint, catalogue))
 
 
-def assert_round_trips(blueprint: Blueprint, target: Target) -> None:
+def assert_round_trips(
+    blueprint: Blueprint, target: Target, catalogue: Catalogue | None = None
+) -> None:
     """Raise naming what differed, rather than returning False.
 
     A boolean tells you a compiler is lossy. The difference tells you which
     field, which is the part somebody has to fix.
     """
-    returned = round_trip(blueprint, target)
+    returned = round_trip(blueprint, target, catalogue)
     if returned == blueprint:
         return
     differences = [

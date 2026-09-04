@@ -96,9 +96,9 @@ NOT worth it — 3 condition(s) fail:
 
 ### XI · Workflow Automation as an execution target (partial)
 
-Queues, workers, webhooks with signature verification, idempotency, retries and dead-letter exist as a runtime, and omnex.factory.compile now emits that shape as an n8n workflow JSON somebody can import into their own instance. Every emitted node is n8n-nodes-base.noOp and says so in its own notes field: an AgentSpec names a tool and its price and does not name the endpoint, credential or payload, so filling those in would ship invented configuration as though somebody had supplied it. What is missing is the binding a person supplies, not the compiler.
+Queues, workers, webhooks with signature verification, idempotency, retries and dead-letter exist as a runtime, and omnex.factory.compile emits that shape as an n8n workflow JSON somebody can import into their own instance. The bindings this branch was missing are now data: engine/ontology/n8n_bindings.json, loaded and validated by omnex.factory.compile.bindings, emitted by the n8n target. A ref with a binding gets its real node type and parameters; a ref without one still gets n8n-nodes-base.noOp and says so in its own notes field. The claim stays partial rather than complete, and the honest reason is in `missing`: written down is not the same as seen to work, and confirming a binding requires an import this process cannot perform. emit(require_confirmed=True) is the gate that keeps an unconfirmed shape out of anything unattended.
 
-- missing: tool bindings — endpoint, method and credential per tool — so an emitted n8n workflow runs instead of importing as a wiring diagram
+- missing: a binding confirmed by an import — 0 of 7 today. The catalogue supplies node type, method and credential name per tool, and two storefront bindings carry no url because the Etsy and Lemon Squeezy shapes could not be read from the environment this was written in. Nothing here can perform the import that would settle them.
 
 ```
 NOT worth it — 3 condition(s) fail:

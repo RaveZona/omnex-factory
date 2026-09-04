@@ -338,6 +338,37 @@ def live_listings_are_covered(root: Path | None = None) -> list[Violation]:
     ]
 
 
+# ── 8. a binding names a credential, it never carries one ─────────────────
+def bindings_carry_no_credentials() -> list[Violation]:
+    """The n8n catalogue is committed, and a key in a committed file is an incident.
+
+    `compile/n8n.py` scans the workflow it emits, but that scan runs at emit time
+    on a document nobody keeps. This scans the file in the repository, which is
+    the one that gets pushed — the same rule at the place where it is permanent
+    rather than momentary.
+
+    It also refuses a confirmation with nobody behind it, because `confirmed`
+    is what `require_confirmed=True` reads before letting a workflow run
+    unattended, and a claim no person made is the only way that gate opens by
+    accident.
+    """
+    catalogue = ENGINE / "ontology" / "n8n_bindings.json"
+    if not catalogue.exists():
+        return []
+    sys.path.insert(0, str(ENGINE / "src"))
+    from omnex.core.errors import ValidationFailed
+    from omnex.factory.compile import bindings
+
+    try:
+        bindings.load(catalogue)
+    except ValidationFailed as exc:
+        return [
+            Violation("engine/ontology/n8n_bindings.json", str(problem))
+            for problem in exc.context.get("problems", [str(exc)])
+        ]
+    return []
+
+
 #: Every checker this module offers, by the name `invariants.json` refers to.
 CHECKERS = {
     "money_never_float": money_never_float,
@@ -347,6 +378,7 @@ CHECKERS = {
     "twin_splitters_agree": twin_splitters_agree,
     "no_required_dependencies": no_required_dependencies,
     "live_listings_are_covered": live_listings_are_covered,
+    "bindings_carry_no_credentials": bindings_carry_no_credentials,
 }
 
 

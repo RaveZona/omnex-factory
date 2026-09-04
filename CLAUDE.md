@@ -35,8 +35,8 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **973 engine tests · 68 TypeScript · 16 citegate**, all green,
-plus **12 of 12 mutations killed**.
+Current state: **991 engine tests · 68 TypeScript · 16 citegate**, all green,
+plus **14 of 14 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
@@ -99,6 +99,10 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   offers — mirroring `registry.ts`'s `enabled` — because "you must have 170
   images" would be red until the day they exist, and a permanently red build is
   one people ignore. → `live_listings_are_covered`
+- **An n8n binding names a credential and never carries one**, and may not claim
+  confirmation without a person's name and a date. The emitted workflow JSON is
+  committed and shared; a key in it is an incident, not a configuration.
+  → `bindings_carry_no_credentials`
 - **Suite fingerprints refuse cross-suite comparison.** Editing an expected
   answer and re-running is otherwise indistinguishable from an improvement.
 
@@ -140,10 +144,24 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   `scripts/invariant_map.py` runs every checker, renders `INVARIANTS.md`, and
   exits non-zero on a breach. **A rule with no checker AND no written reason one
   is impossible fails the script** — the mechanism that stops the registry
-  becoming a second copy of this file. Currently **7 of 10 enforced**, 3 declared
+  becoming a second copy of this file. Currently **8 of 11 enforced**, 3 declared
   unenforceable with reasons, 2 allowlisted exceptions that each name a working
   injection point. Each bullet in "Non-obvious invariants" above cites its id,
   and a test requires that link in both directions.
+- `engine/ontology/n8n_bindings.json` + `engine/scripts/n8n_bindings_check.py` —
+  **what an n8n node actually is, as data a person confirms.** Branch XI's
+  `missing` field named the gap in words: without endpoint, method and credential
+  per tool, an emitted workflow imports as a wiring diagram. The emitter now
+  binds from this catalogue and leaves `noOp` only where nothing is bound.
+  Nothing in it is inferred — the open web is refused at this environment's
+  proxy, so the Etsy and Lemon Squeezy shapes could not be read, and those two
+  bindings carry the knowable parts (node type, method, credential name) with the
+  url deliberately absent and a note saying why. `confirmed` means **a person
+  imported it and n8n accepted it**; setting it needs `confirmed_by` and
+  `confirmed_at`, exactly as `nodes.json` requires for symbol resolution.
+  Currently **7 bindings, 0 confirmed · 4 node types, 0 confirmed** — the one
+  figure here a script cannot flatter. `emit(..., require_confirmed=True)` is
+  what a deploy path uses; building and reading by hand does not need it.
 - `packs/listing.json` + `packs/listing_check.py` — **what a listing promises,
   as data, against what QC passed.** `GIG.md` sells the €49 Complete Vault as
   "170+ images"; the four QC manifests total **80**. Nothing connected the copy
@@ -175,9 +193,9 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   assembly logic where every refusal lives is testable without it.
 - `engine/scripts/mutate.py` — **the honest answer to "how many bugs".** There
   is no integer for that. There is a measurable one for *how much of this is
-  actually held by its tests*: twelve hand-written mutations against rules the
+  actually held by its tests*: fourteen hand-written mutations against rules the
   repo has already paid for, each naming the test that must go red. Currently
-  **12 of 12 killed**. On its first run it was 11 — the survivor showed that
+  **14 of 14 killed**. On its first run it was 11 — the survivor showed that
   `Run.margin` and `_summarise`'s total were independent paths that happened to
   agree, so changing one moved the median, p10 and worst while the total and the
   verdict stayed put. No dependency, no coverage threshold: a coverage gate
@@ -239,10 +257,16 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   the other fifteen are not comparing an artifact with itself. That matrix found
   a real bug: n8n read tool prices off tool *nodes*, so four of five paradigms
   lost every price and the workflow still imported. Prices now travel in `meta`.
-  Every n8n node is `noOp` and says **in its own `notes` field** that it is a
-  placeholder — a spec names a tool and its price, never the endpoint,
-  credential or payload, and inventing those ships configuration nobody
-  supplied.
+  An n8n node is `noOp` and says **in its own `notes` field** that it is a
+  placeholder whenever nothing in `n8n_bindings.json` binds its ref — a spec
+  names a tool and its price, never the endpoint, credential or payload, and
+  inventing those ships configuration nobody supplied. A bound node carries the
+  real type and parameters and says in the same field whether anybody has
+  imported it. **The omnex keys are merged last on purpose**: a hand-written
+  parameter template that shadowed `omnexRef` would round-trip as a different
+  topology while the workflow still imported, which is the one way the round-trip
+  property could be defeated from the data side (`a_binding_may_shadow_the_
+  reference` in `mutate.py`).
 - `engine/src/omnex/factory/economics.py` — margin per run, per agent, per
   customer, in exact picos. **Acquisition is not a per-run cost**: charging it
   that way makes a customer look worse the more they use the product, so it is

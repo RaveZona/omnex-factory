@@ -170,6 +170,25 @@ CATALOGUE: tuple[Mutation, ...] = (
         ),
         rule="zero is not a missing number, it is a wrong one",
     ),
+    Mutation(
+        ident="a_binding_may_shadow_the_reference",
+        path="engine/src/omnex/factory/compile/n8n.py",
+        find='            node["parameters"] = {**binding.parameters, **parameters}',
+        replace='            node["parameters"] = {**parameters, **binding.parameters}',
+        caught_by=(
+            "tests/test_compile.py"
+            "::test_a_binding_cannot_shadow_the_reference_the_parser_reads_back",
+        ),
+        rule="a hand-written parameter template may not rewrite the topology the parser reads back",
+    ),
+    Mutation(
+        ident="a_key_rides_out_in_the_workflow",
+        path="engine/src/omnex/factory/compile/n8n.py",
+        find="    shape = looks_like_a_secret(document)",
+        replace="    shape = None",
+        caught_by=("tests/test_compile.py::test_a_secret_reaching_the_emitted_workflow_stops_it",),
+        rule="an emitted workflow is committed and shared; a credential in it is an incident",
+    ),
 )
 
 
