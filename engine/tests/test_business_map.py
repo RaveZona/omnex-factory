@@ -27,18 +27,58 @@ REPO = Path(__file__).resolve().parents[2]
 
 # ── elapsed time comes from git ───────────────────────────────────────────
 def test_the_day_count_is_derived_from_the_first_commit() -> None:
-    """Typed elapsed time is wrong the day after it is typed."""
+    """Typed elapsed time is wrong the day after it is typed.
+
+    Asserted on the arithmetic rather than on a fixed date, because CI checks
+    out shallow and a hardcoded first commit made this test a statement about
+    clone depth. That is what turned CI red and found the real defect below.
+    """
     when = business_map.age(datetime(2026, 9, 4, tzinfo=UTC))
-    assert when.first_commit == "2026-07-29"
-    assert when.days == 37
     assert when.commits > 0
     assert when.recent_commits <= when.commits
+    if when.days is None:
+        pytest.skip("shallow clone — elapsed time is refused, see the test below")
+    expected = (
+        datetime(2026, 9, 4, tzinfo=UTC)
+        - datetime.strptime(when.first_commit, "%Y-%m-%d").replace(tzinfo=UTC)
+    ).days
+    assert when.days == expected
 
 
 def test_the_day_count_moves_with_the_clock() -> None:
-    early = business_map.age(datetime(2026, 8, 1, tzinfo=UTC)).days
-    later = business_map.age(datetime(2026, 9, 4, tzinfo=UTC)).days
-    assert later - early == 34
+    early = business_map.age(datetime(2026, 8, 1, tzinfo=UTC))
+    later = business_map.age(datetime(2026, 9, 4, tzinfo=UTC))
+    if early.days is None or later.days is None:
+        pytest.skip("shallow clone — elapsed time is refused")
+    assert later.days - early.days == 34
+
+
+def test_a_shallow_clone_refuses_to_report_a_day_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The defect CI found, and the reason this file exists at all.
+
+    `actions/checkout@v4` fetches depth 1, so `git log --reverse` returns the one
+    commit it has and the first commit LOOKS like today. The original script
+    would have written "Day 0, 1 commit" — a plausible number nobody measured,
+    which is exactly the failure BUSINESS.md is built to prevent. It now refuses
+    instead, and says which checkout it could not measure from.
+    """
+    real = business_map._git
+
+    def shallow(*args: str) -> str:
+        if args[:2] == ("rev-parse", "--is-shallow-repository"):
+            return "true"
+        return real(*args)
+
+    monkeypatch.setattr(business_map, "_git", shallow)
+    when = business_map.age(datetime(2026, 9, 4, tzinfo=UTC))
+    assert when.days is None
+    assert when.shallow is True
+    assert when.commits > 0, "commit count is still readable and should still be reported"
+
+    page = business_map.render(datetime(2026, 9, 4, tzinfo=UTC))
+    assert "not measurable from this checkout" in page
+    assert "Day 0" not in page
+    assert "plausible number nobody measured" in page
 
 
 def test_elapsed_time_is_labelled_as_this_repository_only() -> None:
@@ -48,8 +88,9 @@ def test_elapsed_time_is_labelled_as_this_repository_only() -> None:
     "day 37" read as "37 days of work" would be exactly that.
     """
     page = business_map.render(datetime(2026, 9, 4, tzinfo=UTC))
-    assert "first commit in this repository" in page
     assert "cannot see the work that came before it" in page
+    if business_map.age().days is not None:
+        assert "first commit in this repository" in page
 
 
 # ── the registry is parsed in the form it is written in ───────────────────
