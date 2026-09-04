@@ -114,6 +114,13 @@ class Binding:
     #: kind. Never a value — see the module docstring.
     credentials: dict[str, str] = field(default_factory=dict)
     parameters: dict[str, Any] = field(default_factory=dict)
+    #: Environment variables the command reads INSIDE itself rather than through
+    #: its arguments. A signing secret belongs here and must never appear in a
+    #: command string: argv is visible in `ps` and n8n records what it ran.
+    #: Without this field an operator reading the derived environment list would
+    #: set every variable the commands interpolate and none of the ones that
+    #: matter most.
+    env: tuple[str, ...] = ()
     confirmed: bool = False
     confirmed_by: str = ""
     confirmed_at: str = ""
@@ -273,6 +280,7 @@ def load(path: Path) -> Catalogue:
             node_type=node_type,
             credentials={str(k): str(v) for k, v in credentials.items()},
             parameters=dict(payload.get("parameters") or {}),
+            env=tuple(str(name) for name in payload.get("env") or ()),
             confirmed=bool(payload.get("confirmed", False)),
             confirmed_by=str(payload.get("confirmed_by", "")),
             confirmed_at=str(payload.get("confirmed_at", "")),

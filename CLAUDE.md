@@ -35,8 +35,8 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **991 engine tests · 68 TypeScript · 16 citegate**, all green,
-plus **14 of 14 mutations killed**.
+Current state: **1,010 engine tests · 68 TypeScript · 16 citegate**, all green,
+plus **15 of 15 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
 ## engine/src/omnex/ — what each module is for
@@ -162,6 +162,24 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   Currently **7 bindings, 0 confirmed · 4 node types, 0 confirmed** — the one
   figure here a script cannot flatter. `emit(..., require_confirmed=True)` is
   what a deploy path uses; building and reading by hand does not need it.
+  A binding whose `source` is `this repository` names a command the checker
+  **resolves** — module, `__main__`, subcommand, or a real `.py` path — because
+  the first version of this catalogue named two modules that did not exist.
+- `engine/src/omnex/pipeline/__main__.py` — the CLI an n8n `executeCommand` node
+  runs: `verify` (signature, replay window, sender id; body on stdin) and `claim`
+  (deliver once). **Exit codes are the interface**: `0` proceed, `1` refused,
+  `3` already delivered. `3` is separate because a redelivery is the normal case,
+  and collapsing it into the failure code teaches whoever watches the workflow to
+  ignore failures. The secret is read from `OMNEX_WEBHOOK_SECRET` and there is no
+  `--secret` flag — argv is visible in `ps` and n8n writes the command it ran
+  into its own execution log.
+- `engine/src/omnex/pipeline/claim.py` — `Claims`, a directory with one file per
+  event id, taken with `os.open(O_CREAT|O_EXCL)`. `IdempotencyStore` is a dict
+  and is correct for a worker that stays up; an n8n node runs a command and the
+  process exits, so a dict there starts empty on every redelivery and
+  deduplicates nothing. Boundary stated in the module: one filesystem, and a
+  claim is written **before** the work, so a crash leaves an event claimed and
+  undelivered — the other direction charges the customer twice.
 - `packs/listing.json` + `packs/listing_check.py` — **what a listing promises,
   as data, against what QC passed.** `GIG.md` sells the €49 Complete Vault as
   "170+ images"; the four QC manifests total **80**. Nothing connected the copy
@@ -193,9 +211,9 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   assembly logic where every refusal lives is testable without it.
 - `engine/scripts/mutate.py` — **the honest answer to "how many bugs".** There
   is no integer for that. There is a measurable one for *how much of this is
-  actually held by its tests*: fourteen hand-written mutations against rules the
+  actually held by its tests*: fifteen hand-written mutations against rules the
   repo has already paid for, each naming the test that must go red. Currently
-  **14 of 14 killed**. On its first run it was 11 — the survivor showed that
+  **15 of 15 killed**. On its first run it was 11 — the survivor showed that
   `Run.margin` and `_summarise`'s total were independent paths that happened to
   agree, so changing one moved the median, p10 and worst while the total and the
   verdict stayed put. No dependency, no coverage threshold: a coverage gate
@@ -312,6 +330,16 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
 ## Lab notes — mistakes already paid for, do not repeat
 
 - `ruff check` passing does not mean `ruff format --check` passes. Run both.
+- **A catalogue entry is prose until something resolves it.** The first version
+  of `n8n_bindings.json` shipped naming `python -m omnex.pipeline.verify_webhook`
+  and `...seen_before`. Neither was a module. It passed every check written for
+  it — the schema was valid, no secret was in it, the node type existed — because
+  every one of those checks was about the entry's *shape*. An unresolvable
+  command is worse than an unbound ref: the workflow imports, the node is not
+  marked a placeholder, and nothing says otherwise until the first real order.
+  `unresolved_commands()` now resolves every command claiming to be ours, and
+  `test_a_command_naming_a_module_that_does_not_exist_is_caught` reproduces the
+  exact three shapes that shipped.
 - **A concurrency test written the obvious way passes without the lock.** At
   CPython's default 5ms switch interval, eight threads rarely interleave inside
   a short critical section, so the first version of `test_concurrency.py` was

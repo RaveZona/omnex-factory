@@ -63,18 +63,23 @@
     "order.verify_signature": {
       "node_type": "command",
       "parameters": {
-        "command": "python -m omnex.pipeline.verify_webhook --header \"$OMNEX_SIGNATURE_HEADER\""
+        "command": "python -m omnex.pipeline verify --timestamp \"$OMNEX_TIMESTAMP\" --signature \"$OMNEX_SIGNATURE\""
       },
-      "source": "proposal",
-      "note": "Wraps pipeline.WebhookVerifier. The signing secret comes from the host environment; it is never a parameter here."
+      "env": [
+        "OMNEX_WEBHOOK_SECRET"
+      ],
+      "confirmed": false,
+      "source": "this repository",
+      "note": "src/omnex/pipeline/__main__.py. Body arrives on stdin; the signing secret is read from OMNEX_WEBHOOK_SECRET and never from a flag, because argv is visible in ps and n8n logs the command it ran. Exit 0 proceed, 1 refused."
     },
     "order.deduplicate": {
       "node_type": "command",
       "parameters": {
-        "command": "python -m omnex.pipeline.seen_before --event-id \"$OMNEX_EVENT_ID\""
+        "command": "python -m omnex.pipeline claim --store \"$OMNEX_CLAIM_STORE\" --event-id \"$OMNEX_EVENT_ID\""
       },
-      "source": "proposal",
-      "note": "Both storefronts retry deliveries. Two deliveries of one order is two GPU-built packs and one confused buyer."
+      "confirmed": false,
+      "source": "this repository",
+      "note": "src/omnex/pipeline/__main__.py, backed by pipeline.Claims. Both storefronts retry, and two deliveries of one order is two GPU-built packs and one confused buyer. Exit 0 proceed, 3 already delivered - route 3 to a stop, not to an error branch."
     },
     "pack.verify_listing": {
       "node_type": "command",

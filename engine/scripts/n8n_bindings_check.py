@@ -26,16 +26,116 @@ and a permanently red build is one people learn to ignore.
 
 from __future__ import annotations
 
+import argparse
+import importlib
+import importlib.util
+import re
+import shlex
 import sys
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[1]
+REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "src"))
 
 from omnex.core.errors import ValidationFailed  # noqa: E402
 from omnex.factory.compile import bindings  # noqa: E402
 
 CATALOGUE = ENGINE / "ontology" / "n8n_bindings.json"
+
+#: `source` value claiming the command is this repository's own, and therefore
+#: checkable from here. Anything else names a remote shape nothing local can
+#: resolve, and is reported as proposed instead.
+OURS = "this repository"
+
+_ENV = re.compile(r"\$\{?([A-Z][A-Z0-9_]*)\}?")
+
+
+def unresolved_commands(catalogue: bindings.Catalogue) -> list[str]:
+    """Bindings that claim to run this repository's own code and do not.
+
+    The failure this exists for happened: two bindings named
+    `python -m omnex.pipeline.verify_webhook` and `...seen_before`, neither of
+    which was a module. A catalogue entry is prose until something resolves it,
+    and an unresolvable command is worse than an unbound ref — the workflow
+    imports, the node is not a placeholder, and it fails at the first real order.
+
+    Only entries whose `source` is this repository are checked. A storefront
+    endpoint cannot be resolved from here and says so in its own note.
+    """
+    problems: list[str] = []
+    for ref, binding in sorted(catalogue.bindings.items()):
+        if binding.source != OURS:
+            continue
+        command = str(binding.parameters.get("command", ""))
+        if not command:
+            problems.append(f"{ref} claims to run this repository's code and names no command")
+            continue
+        problems.extend(f"{ref}: {problem}" for problem in _resolve(command))
+    return problems
+
+
+def _resolve(command: str) -> list[str]:
+    tokens = shlex.split(command)
+    if "-m" in tokens:
+        module = tokens[tokens.index("-m") + 1]
+        rest = tokens[tokens.index("-m") + 2 :]
+        subcommand = next((t for t in rest if not t.startswith("-")), "")
+        return _resolve_module(module, subcommand)
+
+    script = next((t for t in tokens if t.endswith(".py")), "")
+    if not script:
+        return [f"{command!r} runs neither a module nor a .py file in this repository"]
+    if not (REPO / script).exists():
+        return [f"{script} does not exist"]
+    return []
+
+
+def _resolve_module(module: str, subcommand: str) -> list[str]:
+    entry = f"{module}.__main__"
+    try:
+        # find_spec RAISES rather than returning None when a parent package is
+        # missing, which is the common case here: the defect this catches named
+        # `omnex.pipeline.verify_webhook`, a package that never existed.
+        found = importlib.util.find_spec(entry)
+    except ModuleNotFoundError:
+        found = None
+    if found is None:
+        return [f"{module} has no __main__, so `python -m {module}` cannot run"]
+    if not subcommand:
+        return []
+
+    parser = importlib.import_module(entry).build_parser()
+    # `choices` on the sub-parsers action is the only place argparse records the
+    # accepted subcommands. Reading it is better than calling parse_args, which
+    # would raise on the required flags this command legitimately has.
+    known = [
+        name
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+        for name in action.choices
+    ]
+    if known and subcommand not in known:
+        return [f"`{module} {subcommand}` is not a subcommand; it accepts {', '.join(known)}"]
+    return []
+
+
+def required_env(catalogue: bindings.Catalogue) -> dict[str, list[str]]:
+    """Environment variables the catalogue's commands read, and who reads each.
+
+    An operator setting up an n8n host needs this list, and the honest place to
+    derive it is the commands themselves rather than a second document that goes
+    stale the first time a flag changes.
+    """
+    found: dict[str, list[str]] = {}
+    for ref, binding in sorted(catalogue.bindings.items()):
+        interpolated = set(_ENV.findall(str(binding.parameters.get("command", ""))))
+        # A secret is deliberately absent from the command string, so deriving
+        # this list from the commands alone would name every variable except the
+        # ones whose absence stops the workflow.
+        for name in sorted(interpolated | set(binding.env)):
+            found.setdefault(name, []).append(ref)
+    return found
 
 
 def main() -> int:
@@ -73,10 +173,25 @@ def main() -> int:
         for ref in unaddressed:
             print(f"  {ref}")
 
+    environment = required_env(catalogue)
+    if environment:
+        print()
+        print(f"{len(environment)} environment variable(s) the commands read:")
+        for name, refs in sorted(environment.items()):
+            print(f"  {name:<24} {', '.join(refs)}")
+
+    problems = unresolved_commands(catalogue)
     print()
+    if problems:
+        print(f"FAIL {len(problems)} command(s) name code this repository does not have:")
+        for problem in problems:
+            print(f"  {problem}")
+        return 1
     print(
-        "Confirmed means somebody imported it and n8n accepted it. Nothing here "
-        "can establish that, which is why the count is the number worth reading."
+        "Every command claiming to run this repository's own code resolves. "
+        "Confirmed, though, means somebody imported the workflow and n8n accepted "
+        "it — nothing here can establish that, which is why that count is the "
+        "number worth reading."
     )
     return 0
 

@@ -189,6 +189,16 @@ CATALOGUE: tuple[Mutation, ...] = (
         caught_by=("tests/test_compile.py::test_a_secret_reaching_the_emitted_workflow_stops_it",),
         rule="an emitted workflow is committed and shared; a credential in it is an incident",
     ),
+    Mutation(
+        ident="a_claim_stops_being_exclusive",
+        path="engine/src/omnex/pipeline/claim.py",
+        find="            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)",
+        replace="            handle = os.open(path, os.O_CREAT | os.O_WRONLY, 0o600)",
+        caught_by=(
+            "tests/test_pipeline_cli.py::test_the_second_delivery_of_one_event_does_not_proceed",
+        ),
+        rule="both storefronts retry; one order delivered twice is two GPU-built packs",
+    ),
 )
 
 
