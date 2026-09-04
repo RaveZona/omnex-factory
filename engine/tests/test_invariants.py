@@ -20,6 +20,7 @@ a_reason_is_refused` is that mechanism under test.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -256,3 +257,67 @@ def test_the_rendered_map_reports_the_unenforceable_rather_than_hiding_them() ->
     for entry in entries:
         if not entry.get("checker"):
             assert str(entry["id"]) in page
+
+
+# ── the business rule ─────────────────────────────────────────────────────
+def test_nothing_is_live_so_nothing_is_violated_today() -> None:
+    """Honest state, not a passing grade.
+
+    Every offer in `packs/listing.json` is `live: false`, so the gate is green
+    while the Complete Vault still promises 170 images against 80 that passed
+    QC. `packs/listing_check.py` reports that shortfall regardless — the report
+    tells you what is missing, the gate stops you selling a lie.
+    """
+    assert invariants.live_listings_are_covered() == []
+
+    checker = invariants.REPO / "packs" / "listing_check.py"
+    if not checker.exists():
+        pytest.skip("packs/ is not in this checkout")
+    module = invariants._load(checker, "packs_listing_check_test")
+    shortfalls, _ = module.audit(module.load_listing(), invariants.REPO / "packs")
+    assert shortfalls, "the shortfall vanished — regenerate this test's premise"
+
+
+def test_a_live_listing_that_is_short_is_refused(tmp_path: Path) -> None:
+    """The gate bites the moment somebody publishes, and not before.
+
+    Scoped to live offers on purpose: "you must have 170 images" would be red
+    until the day they exist, and a permanently red build is one people learn to
+    ignore — the exact failure this registry was built against. Proving it fires
+    therefore needs a directory where something IS live and short, rather than
+    publishing something to find out.
+    """
+    if not (invariants.REPO / "packs" / "listing_check.py").exists():
+        pytest.skip("packs/ is not in this checkout")
+
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "alpha" / "manifest.json").write_text(
+        json.dumps({"images": [{"file": "a.png"}]}), encoding="utf-8"
+    )
+    (tmp_path / "LICENSE.txt").write_text("licence", encoding="utf-8")
+    (tmp_path / "listing.json").write_text(
+        json.dumps(
+            {
+                "licence_file": "LICENSE.txt",
+                "packs": {
+                    "alpha": {
+                        "listing_name": "Alpha Pack",
+                        "promised_images": 40,
+                        "live": True,
+                    },
+                    "beta": {
+                        "listing_name": "Beta Pack",
+                        "promised_images": 40,
+                        "live": False,
+                    },
+                },
+                "bundles": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    found = invariants.live_listings_are_covered(tmp_path)
+    assert len(found) == 1, "the offer that is not live was counted, or the live one was not"
+    assert "Alpha Pack" in found[0].detail
+    assert "39 short" in found[0].detail

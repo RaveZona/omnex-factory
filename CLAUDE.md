@@ -35,7 +35,7 @@ with CI and cannot see a rule that is weak on *both* sides. `ruff format --check
 omitted `scripts` here and in CI, they agreed, and only reading them together
 with fresh eyes found it.
 
-Current state: **940 engine tests · 68 TypeScript · 16 citegate**, all green,
+Current state: **953 engine tests · 68 TypeScript · 16 citegate**, all green,
 plus **12 of 12 mutations killed**.
 All 68 TypeScript tests now run in CI; until this commit, seven of them did.
 
@@ -94,6 +94,11 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
 - **Docstrings explain why and name the failure prevented.**
   → `docstrings_name_the_failure`, declared **unenforceable**: any mechanical
   proxy turns a convention into a quota.
+- **A live listing may not promise more than QC passed.** The €49 Complete
+  Vault sells "170+ images" against 80 in the manifests. Scoped to `live`
+  offers — mirroring `registry.ts`'s `enabled` — because "you must have 170
+  images" would be red until the day they exist, and a permanently red build is
+  one people ignore. → `live_listings_are_covered`
 - **Suite fingerprints refuse cross-suite comparison.** Editing an expected
   answer and re-running is otherwise indistinguishable from an improvement.
 
@@ -135,10 +140,20 @@ because nothing grepped. A rule that is not in a gate decays at that rate.
   `scripts/invariant_map.py` runs every checker, renders `INVARIANTS.md`, and
   exits non-zero on a breach. **A rule with no checker AND no written reason one
   is impossible fails the script** — the mechanism that stops the registry
-  becoming a second copy of this file. Currently **6 of 9 enforced**, 3 declared
+  becoming a second copy of this file. Currently **7 of 10 enforced**, 3 declared
   unenforceable with reasons, 2 allowlisted exceptions that each name a working
   injection point. Each bullet in "Non-obvious invariants" above cites its id,
   and a test requires that link in both directions.
+- `packs/listing.json` + `packs/listing_check.py` — **what a listing promises,
+  as data, against what QC passed.** `GIG.md` sells the €49 Complete Vault as
+  "170+ images"; the four QC manifests total **80**. Nothing connected the copy
+  to the goods, so the only thing between that page and a live Etsy listing was
+  somebody remembering. The check reads manifests rather than directories
+  because `.gitignore` admits exactly one file back out of `packs/*/`
+  (`!packs/*/manifest.json`) — the images live on the machine that made them.
+  A bundle is measured against its members' **real** counts: the Vault promises
+  170 and its packs promise 50+40+40+40 = 170, so promise-versus-promise agrees
+  with itself while every pack is short.
 - `engine/scripts/mutate.py` — **the honest answer to "how many bugs".** There
   is no integer for that. There is a measurable one for *how much of this is
   actually held by its tests*: twelve hand-written mutations against rules the

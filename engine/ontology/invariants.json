@@ -85,6 +85,14 @@
       "unenforceable": "A length or keyword check would be satisfied by padding, which is worse than no check: it converts a real convention into a quota.",
       "allowlist": [],
       "note": "Goodhart. A metric for prose quality is a metric for prose volume."
+    },
+    {
+      "id": "live_listings_are_covered",
+      "rule": "A listing that is live may not promise more images than QC has passed.",
+      "paid_for": "the EUR49 Complete Vault sells \"170+ images\" while the four QC manifests total 80 — a 90-image shortfall a buyer would discover after paying",
+      "checker": "live_listings_are_covered",
+      "allowlist": [],
+      "note": "Scoped to LIVE offers on purpose. \"You must have 170 images\" would be red until the day they exist, and a permanently red build is one people learn to ignore — the exact failure this registry was built against. `live` mirrors registry.ts's `enabled`: nothing sells today, so nothing is violated today, and the gate bites the moment somebody publishes. packs/listing_check.py reports the shortfall for every offer regardless, live or not."
     }
   ]
 }

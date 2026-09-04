@@ -293,6 +293,51 @@ def no_required_dependencies() -> list[Violation]:
     ]
 
 
+# ── 7. no live listing promises more than exists ──────────────────────────
+def live_listings_are_covered(root: Path | None = None) -> list[Violation]:
+    """A listing that is SELLING may not promise more than QC passed.
+
+    The rule is not "you must have 170 images". It is "you must not sell 170 you
+    do not have", and the difference is what keeps this from being a permanently
+    red build that people learn to ignore. `packs/listing.json` carries `live`
+    per offer, mirroring `lib/modules/registry.ts`'s `enabled`: nothing is live
+    today, so nothing is violated today, and the gate bites the moment somebody
+    publishes.
+
+    Measured while writing this: the €49 Complete Vault sells "170+ images" and
+    the four QC manifests total 80. That is not a rounding error — it is a
+    refund, a one-star review, and on Etsy an account risk, discovered by the
+    buyer after paying.
+    """
+    packs = root or (REPO / "packs")
+    checker = REPO / "packs" / "listing_check.py"
+    if not checker.exists():
+        return []
+    module = _load(checker, "packs_listing_check_invariant")
+    listing = module.load_listing(packs / "listing.json")
+
+    live = {
+        name
+        for group in ("packs", "bundles")
+        for name, offer in (listing.get(group) or {}).items()
+        if offer.get("live")
+    }
+    if not live:
+        return []
+
+    shortfalls, _ = module.audit(listing, packs)
+    by_name = {
+        str(offer["listing_name"]): name
+        for group in ("packs", "bundles")
+        for name, offer in (listing.get(group) or {}).items()
+    }
+    return [
+        Violation(f"packs/listing.json:{by_name.get(s.listing, s.listing)}", str(s))
+        for s in shortfalls
+        if by_name.get(s.listing) in live
+    ]
+
+
 #: Every checker this module offers, by the name `invariants.json` refers to.
 CHECKERS = {
     "money_never_float": money_never_float,
@@ -301,6 +346,7 @@ CHECKERS = {
     "one_symbol_resolver": one_symbol_resolver,
     "twin_splitters_agree": twin_splitters_agree,
     "no_required_dependencies": no_required_dependencies,
+    "live_listings_are_covered": live_listings_are_covered,
 }
 
 
